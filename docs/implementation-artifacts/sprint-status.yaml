@@ -1,0 +1,75 @@
+# generated: 2026-06-24 09:43:44 +0800
+# last_updated: 2026-06-25 16:45:43 +0800
+# project: 数字狗语音口型 Demo
+# project_key: NOKEY
+# tracking_system: file-system
+# story_location: docs/implementation-artifacts
+
+# 状态定义:
+# ==================
+# Epic Status:
+#   - backlog: Epic 尚未开始
+#   - in-progress: Epic 正在实施
+#   - done: Epic 内所有 Story 已完成
+#
+# Epic Status Transitions:
+#   - backlog -> in-progress: 创建第一个 Story 后自动进入
+#   - in-progress -> done: 所有 Story 达到 done 后手动进入
+#
+# Story Status:
+#   - backlog: Story 仅存在于 epics 文档
+#   - ready-for-dev: Story 文件已创建
+#   - in-progress: 开发者正在实施
+#   - review: 已准备进入代码审查
+#   - done: Story 已完成
+#
+# Retrospective Status:
+#   - optional: 可选复盘，非强制
+#   - done: 复盘已完成
+#
+# Workflow Notes:
+# ===============
+# - Epic 会在第一个 Story 创建后进入 in-progress
+# - 团队容量允许时，多个 Story 可以并行推进
+# - 默认建议按顺序创建和实施 Story，以便吸收前一个 Story 的经验
+# - Story 通常先进入 review，再通过 code-review 后进入 done
+
+generated: "2026-06-24 09:43:44 +0800"
+last_updated: "2026-06-25 16:45:43 +0800"
+project: "数字狗语音口型 Demo"
+project_key: "NOKEY"
+tracking_system: "file-system"
+story_location: "docs/implementation-artifacts"
+
+development_status:
+  epic-1: in-progress
+  1-1-运行-redmi-pad-se-原生-android-demo-外壳: done
+  1-2-首屏宠物舞台与-redmi-pad-se-横竖屏布局: done
+  1-3-宠物状态机与项圈状态反馈: done
+  1-4-7-类嘴型渲染与手动测试: done
+  1-5-宠物基础动作-可访问性与-减少动态: done
+  epic-1-retrospective: optional
+  epic-2: in-progress
+  2-1-tts-主入口提交与空文本处理: done
+  2-2-tts-文本到嘴型时间轴生成: done
+  2-3-时间轴平滑-闭口规则与当前嘴型计算: backlog
+  2-4-tts-播放同步与文本高亮: backlog
+  2-5-内置示例稳定演示: backlog
+  2-6-tts-与示例路径的逻辑测试覆盖: backlog
+  epic-2-retrospective: optional
+  epic-3: backlog
+  3-1-调试快照与当前同步状态展示: backlog
+  3-2-波形进度展示: backlog
+  3-3-嘴型时间轴可视化: backlog
+  3-4-tts-文本高亮调试视图: backlog
+  3-5-延迟校准控件: backlog
+  3-6-调试台横竖屏与可访问性验收: backlog
+  epic-3-retrospective: optional
+  epic-4: backlog
+  4-1-上传音频文件选择与播放入口: backlog
+  4-2-上传音频解码-分析与基础嘴型时间轴: backlog
+  4-3-麦克风权限-录制与回放入口: backlog
+  4-4-麦克风录音分析复用上传分析流程: backlog
+  4-5-可恢复错误与稳定路径保护: backlog
+  4-6-实验入口质量标识与验收测试: backlog
+  epic-4-retrospective: optional

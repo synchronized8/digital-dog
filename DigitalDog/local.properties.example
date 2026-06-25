@@ -1,0 +1,3 @@
+# Copy this file to local.properties only on your own machine when ANDROID_HOME is not set.
+# Keep local.properties out of version control.
+# sdk.dir=/absolute/path/to/Android/sdk

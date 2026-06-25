@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>数字狗语音口型 Demo - iPad UX 设计方向</title>
+  <style>
+    :root {
+      --bg: #f7faf7;
+      --surface: #ffffff;
+      --surface-2: #eef6f3;
+      --text: #24302f;
+      --muted: #66736f;
+      --warm: #f2b6a0;
+      --warm-2: #ffe4d8;
+      --blue: #4c8dff;
+      --coral: #ff6f61;
+      --green: #37a86b;
+      --yellow: #e7a93f;
+      --border: #dde7e3;
+      --shadow: 0 18px 48px rgba(36, 48, 47, 0.08);
+      font-family: Inter, "Noto Sans SC", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--text);
+      background: var(--bg);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+    }
+
+    .shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 32px;
+    }
+
+    .hero {
+      display: grid;
+      gap: 12px;
+      margin-bottom: 28px;
+    }
+
+    h1,
+    h2,
+    h3,
+    p {
+      margin: 0;
+    }
+
+    h1 {
+      font-size: 28px;
+      line-height: 1.25;
+    }
+
+    .lead {
+      max-width: 840px;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 12px 0 20px;
+      background: linear-gradient(180deg, var(--bg) 0%, rgba(247, 250, 247, 0.92) 100%);
+      backdrop-filter: blur(8px);
+    }
+
+    .nav a {
+      display: inline-flex;
+      align-items: center;
+      min-height: 34px;
+      padding: 0 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--text);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .direction {
+      margin: 0 0 48px;
+      padding: 24px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    .direction-header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      color: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+    }
+
+    .direction h2 {
+      font-size: 22px;
+      line-height: 1.25;
+    }
+
+    .direction-summary {
+      max-width: 780px;
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .score {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(84px, 1fr));
+      gap: 8px;
+      min-width: 280px;
+    }
+
+    .score div {
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+      font-size: 12px;
+      line-height: 1.35;
+    }
+
+    .score strong {
+      display: block;
+      font-size: 16px;
+      color: var(--text);
+    }
+
+    .mock {
+      min-height: 600px;
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      background: var(--bg);
+      overflow: hidden;
+    }
+
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      min-height: 56px;
+      padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 750;
+    }
+
+    .mark {
+      width: 30px;
+      height: 30px;
+      border-radius: 8px;
+      background: var(--coral);
+      display: grid;
+      place-items: center;
+      color: white;
+      font-size: 15px;
+      font-weight: 800;
+    }
+
+    .status-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: flex-end;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 28px;
+      padding: 0 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface);
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 650;
+      white-space: nowrap;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--blue);
+    }
+
+    .dot.coral {
+      background: var(--coral);
+    }
+
+    .dot.green {
+      background: var(--green);
+    }
+
+    .dot.yellow {
+      background: var(--yellow);
+    }
+
+    .stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 360px;
+      padding: 32px;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    .stage::after {
+      content: "";
+      position: absolute;
+      left: 50%;
+      bottom: 38px;
+      width: 300px;
+      height: 36px;
+      transform: translateX(-50%);
+      border-radius: 999px;
+      background: rgba(36, 48, 47, 0.07);
+    }
+
+    .dog {
+      position: relative;
+      z-index: 2;
+      width: 220px;
+      height: 240px;
+    }
+
+    .dog .ear {
+      position: absolute;
+      top: 20px;
+      width: 70px;
+      height: 110px;
+      background: #eaa58d;
+      border-radius: 44px 44px 18px 18px;
+      transform-origin: bottom center;
+    }
+
+    .dog .ear.left {
+      left: 22px;
+      transform: rotate(-22deg);
+    }
+
+    .dog .ear.right {
+      right: 22px;
+      transform: rotate(22deg);
+    }
+
+    .dog .head {
+      position: absolute;
+      left: 28px;
+      top: 34px;
+      width: 164px;
+      height: 142px;
+      border-radius: 48% 48% 44% 44%;
+      background: #ffd7c7;
+      border: 2px solid rgba(36, 48, 47, 0.08);
+    }
+
+    .dog .body {
+      position: absolute;
+      left: 48px;
+      top: 152px;
+      width: 124px;
+      height: 82px;
+      border-radius: 46px 46px 38px 38px;
+      background: #fff2eb;
+      border: 2px solid rgba(36, 48, 47, 0.08);
+    }
+
+    .dog .eye {
+      position: absolute;
+      top: 80px;
+      width: 13px;
+      height: 18px;
+      border-radius: 999px;
+      background: #24302f;
+    }
+
+    .dog .eye.left {
+      left: 78px;
+    }
+
+    .dog .eye.right {
+      right: 78px;
+    }
+
+    .dog .snout {
+      position: absolute;
+      left: 78px;
+      top: 103px;
+      width: 64px;
+      height: 46px;
+      border-radius: 34px;
+      background: rgba(255, 255, 255, 0.54);
+    }
+
+    .dog .nose {
+      position: absolute;
+      left: 101px;
+      top: 105px;
+      width: 18px;
+      height: 13px;
+      border-radius: 12px 12px 9px 9px;
+      background: #24302f;
+    }
+
+    .mouth {
+      position: absolute;
+      left: 94px;
+      top: 126px;
+      width: 34px;
+      height: 16px;
+      border-bottom: 4px solid #24302f;
+      border-radius: 0 0 22px 22px;
+    }
+
+    .mouth.open {
+      left: 93px;
+      top: 127px;
+      width: 36px;
+      height: 27px;
+      border: 3px solid #24302f;
+      background: #432b2b;
+      border-radius: 999px;
+    }
+
+    .collar {
+      position: absolute;
+      left: 70px;
+      top: 160px;
+      width: 80px;
+      height: 16px;
+      border-radius: 999px;
+      background: var(--blue);
+      box-shadow: 0 0 18px rgba(76, 141, 255, 0.55);
+    }
+
+    .panel {
+      padding: 18px;
+      background: var(--surface);
+    }
+
+    .panel-title {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 15px;
+      font-weight: 750;
+    }
+
+    .label-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+
+    .metric {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--surface-2);
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .metric strong {
+      display: block;
+      margin-top: 2px;
+      color: var(--text);
+      font-size: 14px;
+    }
+
+    .wave {
+      display: grid;
+      grid-template-columns: repeat(28, 1fr);
+      align-items: end;
+      gap: 3px;
+      height: 72px;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: #fbfdfc;
+      margin-bottom: 12px;
+    }
+
+    .wave i {
+      display: block;
+      min-height: 5px;
+      border-radius: 999px;
+      background: #bad1ff;
+    }
+
+    .wave i:nth-child(4n),
+    .wave i:nth-child(4n + 1) {
+      background: var(--blue);
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: 0.8fr 1.1fr 1.2fr 0.9fr 1.1fr;
+      gap: 4px;
+      margin-bottom: 14px;
+    }
+
+    .timeline span {
+      min-height: 28px;
+      display: grid;
+      place-items: center;
+      border-radius: 7px;
+      background: var(--surface-2);
+      color: var(--muted);
+      font-size: 11px;
+      font-weight: 700;
+    }
+
+    .timeline span.active {
+      background: var(--coral);
+      color: white;
+    }
+
+    .input-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 10px;
+      padding: 18px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .input {
+      min-height: 44px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      padding: 0 12px;
+      color: var(--muted);
+      font-size: 14px;
+      background: #fbfdfc;
+    }
+
+    .btn {
+      min-height: 44px;
+      border: 0;
+      border-radius: 8px;
+      padding: 0 16px;
+      background: var(--coral);
+      color: white;
+      font-weight: 750;
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .quick {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      padding: 0 18px 18px;
+      background: var(--surface);
+    }
+
+    .quick .pill {
+      background: #fbfdfc;
+    }
+
+    .layout-split {
+      display: grid;
+      grid-template-columns: minmax(0, 1.35fr) minmax(320px, 0.75fr);
+      min-height: 544px;
+    }
+
+    .layout-theater .stage {
+      min-height: 460px;
+    }
+
+    .layout-theater .panel {
+      border-top: 1px solid var(--border);
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    .layout-console {
+      display: grid;
+      grid-template-columns: 310px minmax(0, 1fr) 380px;
+      min-height: 544px;
+    }
+
+    .rail {
+      padding: 18px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+    }
+
+    .rail .item {
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .layout-mobile {
+      max-width: 420px;
+      min-height: 720px;
+      margin: 0 auto;
+      border-left: 1px solid var(--border);
+      border-right: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .layout-mobile .topbar {
+      padding: 0 14px;
+    }
+
+    .layout-mobile .stage {
+      min-height: 300px;
+    }
+
+    .layout-mobile .input-row {
+      grid-template-columns: 1fr;
+    }
+
+    .accordion {
+      margin: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .accordion .summary {
+      display: flex;
+      justify-content: space-between;
+      padding: 12px;
+      background: var(--surface-2);
+      font-size: 13px;
+      font-weight: 750;
+    }
+
+    .layout-ai {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      min-height: 544px;
+    }
+
+    .steps {
+      display: grid;
+      gap: 10px;
+      padding: 18px;
+      background: var(--surface);
+      border-left: 1px solid var(--border);
+    }
+
+    .step {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .step .num {
+      width: 26px;
+      height: 26px;
+      border-radius: 8px;
+      display: grid;
+      place-items: center;
+      background: var(--surface-2);
+      font-weight: 800;
+    }
+
+    .notes {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .note {
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      font-size: 13px;
+      line-height: 1.45;
+      color: var(--muted);
+      background: #fbfdfc;
+    }
+
+    .note strong {
+      color: var(--text);
+      display: block;
+      margin-bottom: 4px;
+    }
+
+    @media (max-width: 960px) {
+      .shell {
+        padding: 20px;
+      }
+
+      .direction-header,
+      .layout-split,
+      .layout-console,
+      .layout-ai {
+        grid-template-columns: 1fr;
+        display: grid;
+      }
+
+      .score,
+      .notes,
+      .layout-theater .panel {
+        grid-template-columns: 1fr;
+      }
+
+      .rail,
+      .steps {
+        border: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <h1>数字狗语音口型 Demo - iPad UX 设计方向</h1>
+      <p class="lead">这些方向用于比较第一版 iPadOS 展示 MVP 的信息架构、视觉重心和调试强度。推荐方向不是选最丰富的界面，而是选最能证明“可爱好看 + 口型同步可信”的界面。当前平台决策已调整为 iPad 展示端，不再以网页为目标。</p>
+    </header>
+
+    <nav class="nav" aria-label="设计方向导航">
+      <a href="#direction-a">A 宠物舞台优先</a>
+      <a href="#direction-b">B 精准调试双栏</a>
+      <a href="#direction-c">C 剧场聚焦</a>
+      <a href="#direction-d">D 工程控制台</a>
+      <a href="#direction-e">E iPad 竖屏</a>
+      <a href="#direction-f">F AI 状态预览</a>
+    </nav>
+
+    <section class="direction" id="direction-a">
+      <div class="direction-header">
+        <div>
+          <span class="eyebrow">推荐方向 A</span>
+          <h2>宠物舞台优先</h2>
+          <p class="direction-summary">数字狗占据首屏主视觉，调试台在右侧提供解释能力。最符合当前 PRD 的第一版 MVP：先打动评审者，再让开发者能验证同步。</p>
+        </div>
+        <div class="score" aria-label="方向评分">
+          <div><strong>高</strong>可爱感</div>
+          <div><strong>高</strong>同步可信</div>
+          <div><strong>中</strong>信息密度</div>
+        </div>
+      </div>
+      <div class="mock layout-split">
+        <div>
+          <div class="topbar">
+            <div class="brand"><span class="mark">D</span>Digital Dog Demo</div>
+            <div class="status-row">
+              <span class="pill"><i class="dot coral"></i>讲话中</span>
+              <span class="pill">TTS</span>
+            </div>
+          </div>
+          <div class="stage">
+            <div class="dog" aria-label="数字狗">
+              <div class="ear left"></div><div class="ear right"></div>
+              <div class="body"></div><div class="head"></div>
+              <div class="eye left"></div><div class="eye right"></div>
+              <div class="snout"></div><div class="nose"></div><div class="mouth open"></div><div class="collar"></div>
+            </div>
+          </div>
+          <div class="input-row">
+            <div class="input">今天我想测试数字狗的口型同步</div>
+            <button class="btn">让狗狗说话</button>
+          </div>
+          <div class="quick">
+            <span class="pill">播放示例</span><span class="pill">上传音频</span><span class="pill">开始录音</span>
+          </div>
+        </div>
+        <aside class="panel">
+          <div class="panel-title">同步调试 <span class="pill">+25ms</span></div>
+          <div class="label-grid">
+            <div class="metric">当前嘴型<strong>wide</strong></div>
+            <div class="metric">解析质量<strong>稳定</strong></div>
+            <div class="metric">状态<strong>speaking</strong></div>
+            <div class="metric">来源<strong>TTS</strong></div>
+          </div>
+          <div class="wave">
+            <i style="height:18px"></i><i style="height:32px"></i><i style="height:41px"></i><i style="height:54px"></i><i style="height:48px"></i><i style="height:27px"></i><i style="height:20px"></i><i style="height:44px"></i><i style="height:59px"></i><i style="height:63px"></i><i style="height:35px"></i><i style="height:21px"></i><i style="height:28px"></i><i style="height:52px"></i><i style="height:61px"></i><i style="height:38px"></i><i style="height:24px"></i><i style="height:46px"></i><i style="height:55px"></i><i style="height:32px"></i><i style="height:18px"></i><i style="height:24px"></i><i style="height:36px"></i><i style="height:58px"></i><i style="height:42px"></i><i style="height:26px"></i><i style="height:16px"></i><i style="height:9px"></i>
+          </div>
+          <div class="timeline"><span>closed</span><span>small</span><span class="active">wide</span><span>round</span><span>smile</span></div>
+          <p class="note"><strong>文本高亮</strong>今天我想测试 <mark>数字狗</mark> 的口型同步</p>
+        </aside>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>适合</strong>第一版 MVP 主方向。</div>
+        <div class="note"><strong>优势</strong>宠物和调试都成立，主次清楚。</div>
+        <div class="note"><strong>风险</strong>右侧调试台在 iPad 竖屏必须折叠。</div>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-b">
+      <div class="direction-header">
+        <div>
+          <span class="eyebrow">方向 B</span>
+          <h2>精准调试双栏</h2>
+          <p class="direction-summary">强化波形、时间轴和指标，让开发者更容易验证同步质量。适合作为调试模式，不适合作为默认首屏。</p>
+        </div>
+        <div class="score">
+          <div><strong>中</strong>可爱感</div>
+          <div><strong>高</strong>同步可信</div>
+          <div><strong>高</strong>信息密度</div>
+        </div>
+      </div>
+      <div class="mock layout-console">
+        <aside class="rail">
+          <div class="brand"><span class="mark">D</span>输入来源</div>
+          <div class="item">文字转语音</div>
+          <div class="item">内置示例</div>
+          <div class="item">上传音频</div>
+          <div class="item">麦克风录音</div>
+        </aside>
+        <div>
+          <div class="topbar"><div class="brand">宠物舞台</div><span class="pill"><i class="dot coral"></i>speaking</span></div>
+          <div class="stage">
+            <div class="dog">
+              <div class="ear left"></div><div class="ear right"></div><div class="body"></div><div class="head"></div><div class="eye left"></div><div class="eye right"></div><div class="snout"></div><div class="nose"></div><div class="mouth open"></div><div class="collar"></div>
+            </div>
+          </div>
+        </div>
+        <aside class="panel">
+          <div class="panel-title">口型分析</div>
+          <div class="label-grid">
+            <div class="metric">当前<strong>round</strong></div>
+            <div class="metric">置信度<strong>0.82</strong></div>
+            <div class="metric">延迟<strong>-25ms</strong></div>
+            <div class="metric">切换<strong>3.4/s</strong></div>
+          </div>
+          <div class="wave">
+            <i style="height:18px"></i><i style="height:22px"></i><i style="height:40px"></i><i style="height:56px"></i><i style="height:60px"></i><i style="height:33px"></i><i style="height:28px"></i><i style="height:51px"></i><i style="height:64px"></i><i style="height:58px"></i><i style="height:38px"></i><i style="height:29px"></i><i style="height:35px"></i><i style="height:47px"></i><i style="height:63px"></i><i style="height:41px"></i><i style="height:23px"></i><i style="height:37px"></i><i style="height:49px"></i><i style="height:44px"></i><i style="height:20px"></i><i style="height:28px"></i><i style="height:41px"></i><i style="height:52px"></i><i style="height:36px"></i><i style="height:22px"></i><i style="height:14px"></i><i style="height:8px"></i>
+          </div>
+          <div class="timeline"><span>teeth</span><span>round</span><span class="active">round</span><span>small</span><span>closed</span></div>
+        </aside>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>适合</strong>开发调试和内部验收。</div>
+        <div class="note"><strong>优势</strong>同步原因可解释性最强。</div>
+        <div class="note"><strong>风险</strong>工具感偏强，评审第一眼不够软萌。</div>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-c">
+      <div class="direction-header">
+        <div>
+          <span class="eyebrow">方向 C</span>
+          <h2>剧场聚焦</h2>
+          <p class="direction-summary">把数字狗做成近似舞台主角，调试信息下沉。视觉吸引力强，但开发者验证成本略高。</p>
+        </div>
+        <div class="score">
+          <div><strong>高</strong>可爱感</div>
+          <div><strong>中</strong>同步可信</div>
+          <div><strong>低</strong>信息密度</div>
+        </div>
+      </div>
+      <div class="mock layout-theater">
+        <div class="topbar"><div class="brand"><span class="mark">D</span>Digital Dog Demo</div><span class="pill"><i class="dot coral"></i>讲话中</span></div>
+        <div class="stage">
+          <div class="dog" style="transform:scale(1.2)">
+            <div class="ear left"></div><div class="ear right"></div><div class="body"></div><div class="head"></div><div class="eye left"></div><div class="eye right"></div><div class="snout"></div><div class="nose"></div><div class="mouth open"></div><div class="collar"></div>
+          </div>
+        </div>
+        <div class="panel">
+          <div>
+            <div class="input-row" style="padding:0;border:0"><div class="input">你好，我是会说话的数字狗</div><button class="btn">让狗狗说话</button></div>
+            <div class="quick" style="padding:12px 0 0"><span class="pill">播放示例</span><span class="pill">上传音频</span><span class="pill">开始录音</span></div>
+          </div>
+          <div>
+            <div class="timeline"><span>closed</span><span>small</span><span class="active">wide</span><span>round</span><span>smile</span></div>
+            <p class="note"><strong>同步摘要</strong>当前嘴型 wide · TTS · 稳定</p>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>适合</strong>设计评审和情绪验证。</div>
+        <div class="note"><strong>优势</strong>第一眼最有宠物感。</div>
+        <div class="note"><strong>风险</strong>调试能力被弱化。</div>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-d">
+      <div class="direction-header">
+        <div>
+          <span class="eyebrow">方向 D</span>
+          <h2>工程控制台</h2>
+          <p class="direction-summary">以多输入和分析质量为主，适合后续技术验证阶段。第一版默认使用会削弱宠物情绪价值。</p>
+        </div>
+        <div class="score">
+          <div><strong>低</strong>可爱感</div>
+          <div><strong>高</strong>同步可信</div>
+          <div><strong>高</strong>信息密度</div>
+        </div>
+      </div>
+      <div class="mock layout-console">
+        <aside class="rail">
+          <div class="item">输入总览</div><div class="item">TTS 稳定</div><div class="item">示例 稳定</div><div class="item">上传 实验</div><div class="item">麦克风 实验</div>
+        </aside>
+        <div class="panel">
+          <div class="panel-title">多输入分析</div>
+          <div class="label-grid">
+            <div class="metric">来源<strong>upload</strong></div>
+            <div class="metric">质量<strong>experimental</strong></div>
+            <div class="metric">RMS<strong>0.42</strong></div>
+            <div class="metric">ZCR<strong>0.31</strong></div>
+          </div>
+          <div class="wave"><i style="height:20px"></i><i style="height:40px"></i><i style="height:60px"></i><i style="height:45px"></i><i style="height:24px"></i><i style="height:55px"></i><i style="height:62px"></i><i style="height:31px"></i><i style="height:36px"></i><i style="height:49px"></i><i style="height:29px"></i><i style="height:61px"></i><i style="height:42px"></i><i style="height:20px"></i><i style="height:34px"></i><i style="height:52px"></i><i style="height:46px"></i><i style="height:29px"></i><i style="height:18px"></i><i style="height:39px"></i><i style="height:48px"></i><i style="height:36px"></i><i style="height:22px"></i><i style="height:58px"></i><i style="height:44px"></i><i style="height:26px"></i><i style="height:14px"></i><i style="height:8px"></i></div>
+          <div class="timeline"><span>closed</span><span>wide</span><span>small</span><span class="active">teeth</span><span>closed</span></div>
+        </div>
+        <div class="stage">
+          <div class="dog" style="transform:scale(.85)">
+            <div class="ear left"></div><div class="ear right"></div><div class="body"></div><div class="head"></div><div class="eye left"></div><div class="eye right"></div><div class="snout"></div><div class="nose"></div><div class="mouth open"></div><div class="collar"></div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>适合</strong>第二阶段音频分析实验。</div>
+        <div class="note"><strong>优势</strong>四种入口覆盖感最强。</div>
+        <div class="note"><strong>风险</strong>不符合宠物舞台优先原则。</div>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-e">
+      <div class="direction-header">
+        <div>
+          <span class="eyebrow">方向 E</span>
+          <h2>iPad 竖屏</h2>
+          <p class="direction-summary">从 iPad 竖屏出发，强调核心流程不重叠、不溢出。适合作为紧凑展示验收基准。</p>
+        </div>
+        <div class="score">
+          <div><strong>中</strong>可爱感</div>
+          <div><strong>中</strong>同步可信</div>
+          <div><strong>中</strong>信息密度</div>
+        </div>
+      </div>
+      <div class="mock">
+        <div class="layout-mobile">
+          <div class="topbar"><div class="brand"><span class="mark">D</span>Dog</div><span class="pill"><i class="dot coral"></i>讲话</span></div>
+          <div class="stage">
+            <div class="dog" style="transform:scale(.9)">
+              <div class="ear left"></div><div class="ear right"></div><div class="body"></div><div class="head"></div><div class="eye left"></div><div class="eye right"></div><div class="snout"></div><div class="nose"></div><div class="mouth open"></div><div class="collar"></div>
+            </div>
+          </div>
+          <div class="input-row"><div class="input">输入一句想让狗狗说的话</div><button class="btn">让狗狗说话</button></div>
+          <div class="quick"><span class="pill">播放示例</span><span class="pill">上传</span><span class="pill">录音</span></div>
+          <div class="accordion">
+            <div class="summary"><span>同步调试</span><span>wide · 稳定</span></div>
+            <div class="panel">
+              <div class="timeline"><span>small</span><span class="active">wide</span><span>round</span><span>closed</span><span>pant</span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>适合</strong>iPad 竖屏验收和紧凑交互。</div>
+        <div class="note"><strong>优势</strong>最容易检查溢出和重叠。</div>
+        <div class="note"><strong>风险</strong>横屏演示冲击力不足。</div>
+      </div>
+    </section>
+
+    <section class="direction" id="direction-f">
+      <div class="direction-header">
+        <div>
+          <span class="eyebrow">方向 F</span>
+          <h2>AI 状态预览</h2>
+          <p class="direction-summary">突出未来 AI 对话状态：聆听、思考、讲话、完成、错误。适合作为后续模式，不适合作为第一版默认主线。</p>
+        </div>
+        <div class="score">
+          <div><strong>中</strong>可爱感</div>
+          <div><strong>中</strong>同步可信</div>
+          <div><strong>高</strong>未来感</div>
+        </div>
+      </div>
+      <div class="mock layout-ai">
+        <div>
+          <div class="topbar"><div class="brand"><span class="mark">D</span>AI 状态预览</div><span class="pill"><i class="dot"></i>thinking</span></div>
+          <div class="stage">
+            <div class="dog">
+              <div class="ear left"></div><div class="ear right"></div><div class="body"></div><div class="head"></div><div class="eye left"></div><div class="eye right"></div><div class="snout"></div><div class="nose"></div><div class="mouth"></div><div class="collar"></div>
+            </div>
+          </div>
+          <div class="input-row"><div class="input">Mock 对话：你今天想聊什么？</div><button class="btn">开始对话</button></div>
+        </div>
+        <aside class="steps">
+          <div class="step"><span class="num">1</span>聆听：耳朵竖起，看向用户</div>
+          <div class="step"><span class="num">2</span>思考：闭口，项圈呼吸光</div>
+          <div class="step"><span class="num">3</span>讲话：嘴型跟随 TTS</div>
+          <div class="step"><span class="num">4</span>完成：闭口，眨眼，尾巴轻摇</div>
+          <div class="step"><span class="num">!</span>错误：疑惑反馈，可恢复</div>
+        </aside>
+      </div>
+      <div class="notes">
+        <div class="note"><strong>适合</strong>未来 AI 对话演示。</div>
+        <div class="note"><strong>优势</strong>状态机价值最清晰。</div>
+        <div class="note"><strong>风险</strong>弱化当前口型同步目标。</div>
+      </div>
+    </section>
+  </main>
+</body>
+</html>

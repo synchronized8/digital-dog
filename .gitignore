@@ -1,0 +1,19 @@
+.DS_Store
+
+# IDE and local machine files
+.idea/
+*.iml
+local.properties
+
+# Gradle and Android build outputs
+.gradle/
+build/
+**/build/
+.cxx/
+.externalNativeBuild/
+
+# Generated app packages and signing material
+*.apk
+*.aab
+*.keystore
+*.jks
