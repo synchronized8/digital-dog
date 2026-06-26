@@ -13,29 +13,23 @@ object AppContentContract {
     const val StatusDone = "完成"
     const val StatusError = "需要处理"
     const val InputSourceNoneLabel = "未选择"
-    const val InputSourceTtsLabel = "TTS"
+    const val InputSourceTtsLabel = "文本"
+    const val InputSourceSampleLabel = "示例"
     const val InputSourceNone = "输入来源：未选择"
-    const val SpeechInputDescription = "主输入区，可以输入文字并选择音频测试入口"
-    const val QuickActionsDescription = "多种音频入口，包括播放示例、上传音频和开始录音"
+    const val SpeechInputDescription = "主输入区，可以输入文字并播放示例"
+    const val QuickActionsDescription = "演示入口，包括让狗狗说话和播放示例"
     const val TextInputPlaceholder = "输入一句想让狗狗说的话"
     const val PrimaryCta = "让狗狗说话"
     const val PrimaryCtaBusy = "讲话中"
     const val EmptyTtsInputError = "先输入一句话"
     const val SampleAudio = "播放示例"
-    const val UploadAudio = "上传音频"
-    const val StartRecording = "开始录音"
-    const val Experimental = "实验"
-    const val DebugTitle = "同步调试"
-    const val DebugSummaryTitle = "同步调试摘要"
+    const val StatusSummaryTitle = "状态摘要"
     const val MouthClosedLabel = "闭合"
-    const val CurrentMouthClosed = "当前嘴型：closed"
     const val CurrentStateIdle = "当前状态：待机"
-    const val QualityReadyLabel = "稳定演示待开始"
-    const val QualityReady = "解析质量：稳定演示待开始"
     const val MainInputTitle = "主输入"
-    const val QuickEntryTitle = "多种音频入口"
-    const val ManualMouthTitle = "手动嘴型测试"
-    const val ResetManualMouth = "重置待机"
+    const val MouthStateClosed = "闭口"
+    const val MouthStateOpen = "张口"
+    const val MouthStateTalking = "张口讲话"
 
     val StateLabels = listOf(
         StatusIdle,
@@ -66,11 +60,10 @@ object AppContentContract {
         stateDescription = "闭口待机",
         collarDescription = "项圈低亮，等待输入",
     )
-    val DebugSummaryDescription = debugSummaryDescription(
-        mouthId = "closed",
+    val StatusSummaryDescription = statusSummaryDescription(
+        mouthStateLabel = MouthStateClosed,
         stateLabel = StatusIdle,
         inputSourceLabel = InputSourceNoneLabel,
-        qualityLabel = QualityReadyLabel,
         collarDescription = "项圈低亮，等待输入",
     )
 
@@ -79,16 +72,16 @@ object AppContentContract {
     const val TagSpeechInput = "speech-input"
     const val TagTtsInputField = "tts-input-field"
     const val TagPrimaryTtsCta = "primary-tts-cta"
+    const val TagSampleCta = "sample-cta"
     const val TagQuickActions = "quick-actions"
-    const val TagDebugPanel = "debug-panel"
-    const val TagDebugSummary = "debug-summary"
-    const val TagManualMouthTest = "manual-mouth-test"
+    const val TagStatusSummary = "status-summary"
     const val TagPetFigure = "pet-figure"
     const val TagDogMouth = "dog-mouth"
 
     fun statusBarDescription(
         stateLabel: String,
         inputSourceLabel: String,
+        mouthStateLabel: String? = null,
         stateDescription: String? = null,
         collarDescription: String? = null,
     ) = buildString {
@@ -100,6 +93,10 @@ object AppContentContract {
         }
         append("，输入来源")
         append(inputSourceLabel)
+        if (!mouthStateLabel.isNullOrBlank()) {
+            append("，嘴巴状态")
+            append(mouthStateLabel)
+        }
         if (!collarDescription.isNullOrBlank()) {
             append("，")
             append(collarDescription)
@@ -155,17 +152,15 @@ object AppContentContract {
 
     fun currentStateText(stateLabel: String) = "当前状态：$stateLabel"
 
-    fun currentMouthText(mouthId: String) = "当前嘴型：$mouthId"
+    fun mouthStateText(mouthState: String) = "嘴巴状态：$mouthState"
 
     fun inputSourceText(inputSourceLabel: String) = "输入来源：$inputSourceLabel"
-
-    fun qualityText(qualityLabel: String) = "解析质量：$qualityLabel"
 
     fun ttsInputDescription(
         errorText: String?,
         isBusy: Boolean,
     ) = buildString {
-        append("TTS 主输入，当前")
+        append("文本主输入，当前")
         append(if (isBusy) "已有讲话意图进行中" else "可编辑")
         if (errorText.isNullOrBlank()) {
             append("，未显示错误")
@@ -185,42 +180,18 @@ object AppContentContract {
 
     fun motionPolicyText(policyLabel: String) = "动态策略：$policyLabel"
 
-    fun debugPanelDescription(
-        mouthId: String,
+    fun statusSummaryDescription(
+        mouthStateLabel: String,
         stateLabel: String,
         inputSourceLabel: String,
-        qualityLabel: String,
         collarDescription: String? = null,
     ) = buildString {
-        append("同步调试完整占位，当前嘴型 ")
-        append(mouthId)
-        append("，当前状态")
+        append("状态摘要，当前状态")
         append(stateLabel)
+        append("，嘴巴状态")
+        append(mouthStateLabel)
         append("，输入来源")
         append(inputSourceLabel)
-        append("，解析质量")
-        append(qualityLabel)
-        if (!collarDescription.isNullOrBlank()) {
-            append("，")
-            append(collarDescription)
-        }
-    }
-
-    fun debugSummaryDescription(
-        mouthId: String,
-        stateLabel: String,
-        inputSourceLabel: String,
-        qualityLabel: String,
-        collarDescription: String? = null,
-    ) = buildString {
-        append("同步调试摘要，当前状态")
-        append(stateLabel)
-        append("，嘴型 ")
-        append(mouthId)
-        append("，输入来源")
-        append(inputSourceLabel)
-        append("，解析质量")
-        append(qualityLabel)
         if (!collarDescription.isNullOrBlank()) {
             append("，")
             append(collarDescription)
@@ -229,41 +200,34 @@ object AppContentContract {
 
     fun mouthSemanticLabel(mouth: MouthShape) = mouth.accessibleLabel
 
+    fun mouthStateLabel(
+        mouth: MouthShape,
+        isSpeakingMouthOpen: Boolean = false,
+    ) = when {
+        isSpeakingMouthOpen -> MouthStateTalking
+        mouth == MouthShape.Open -> MouthStateOpen
+        else -> MouthStateClosed
+    }
+
     fun stageMouthStateDescription(
         mouth: MouthShape,
         stateDescription: String,
-    ) = if (mouth == MouthShape.Closed) {
-        stateDescription
-    } else {
-        "手动测试嘴型${mouth.label} ${mouth.stableId}"
+        isSpeakingMouthOpen: Boolean = false,
+    ): String {
+        val mouthStateLabel = mouthStateLabel(mouth, isSpeakingMouthOpen)
+        return when {
+            isSpeakingMouthOpen -> "正在讲话，$mouthStateLabel"
+            mouthStateLabel == MouthStateClosed -> stateDescription
+            else -> mouthStateLabel
+        }
     }
 
     fun stageMouthPoseSummary(
         mouth: MouthShape,
         poseSummary: String,
-    ) = if (mouth == MouthShape.Closed) {
-        poseSummary
-    } else {
-        "手动嘴型${mouth.label}"
-    }
-
-    fun manualMouthButtonText(mouth: MouthShape) = "${mouth.stableId} ${mouth.label}"
-
-    fun manualMouthTestDescription(
-        currentMouth: MouthShape,
-        inputSourceLabel: String,
-    ) = "手动嘴型测试，当前嘴型${mouthSemanticLabel(currentMouth)}，输入来源$inputSourceLabel"
-
-    fun manualMouthOptionDescription(
-        mouth: MouthShape,
-        selected: Boolean,
-    ) = buildString {
-        append("嘴型选项 ")
-        append(mouth.stableId)
-        append(" ")
-        append(mouth.label)
-        if (selected) {
-            append("，已选中")
-        }
+        isSpeakingMouthOpen: Boolean = false,
+    ): String {
+        val mouthStateLabel = mouthStateLabel(mouth, isSpeakingMouthOpen)
+        return if (mouthStateLabel == MouthStateClosed) poseSummary else mouthStateLabel
     }
 }

@@ -5,34 +5,43 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertWidthIsAtLeast
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
-import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
-import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
-import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.unit.DpRect
 import androidx.compose.ui.unit.dp
-import com.digitaldog.demo.app.AppLayoutMode
-import com.digitaldog.demo.app.AppContentContract
-import com.digitaldog.demo.app.DigitalDogApp
 import com.digitaldog.demo.accessibility.AndroidAnimatorScaleProvider
 import com.digitaldog.demo.accessibility.ReduceMotionPolicy
+import com.digitaldog.demo.app.AppContentContract
+import com.digitaldog.demo.app.AppLayoutMode
+import com.digitaldog.demo.app.DigitalDogApp
 import com.digitaldog.demo.dogrenderer.DogMotionProfile
 import com.digitaldog.demo.sharedmodel.InputSource
 import com.digitaldog.demo.sharedmodel.MouthShape
 import com.digitaldog.demo.sharedmodel.PetState
+import com.digitaldog.demo.sharedmodel.SpeechSession
+import com.digitaldog.demo.state.DefaultCompletionFeedbackDurationMs
+import com.digitaldog.demo.state.DefaultSpeechAnimationDurationMs
+import com.digitaldog.demo.state.DogActionCue
+import com.digitaldog.demo.state.SpeechAnimationState
 import com.digitaldog.demo.state.SpeechDemoState
 import com.digitaldog.demo.state.toPresentation
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 
@@ -41,16 +50,26 @@ class DigitalDogAppTest {
     val composeRule = createAndroidComposeRule<MainActivity>()
 
     @Test
-    fun mainActivityShowsFirstScreenSkeleton() {
+    fun mainActivityShowsCurrentMvpFirstScreen() {
         composeRule.onNodeWithText(AppContentContract.Title).assertIsDisplayed()
         composeRule.onNodeWithTag(AppContentContract.TagStatusBar).assertIsDisplayed()
         composeRule.onNodeWithTag(AppContentContract.TagPetStage).assertIsDisplayed()
         composeRule.onNodeWithTag(AppContentContract.TagSpeechInput).assertIsDisplayed()
         composeRule.onNodeWithTag(AppContentContract.TagQuickActions).assertIsDisplayed()
+        composeRule.onNodeWithTag(AppContentContract.TagStatusSummary).assertDisplayedAfterScroll()
         composeRule.onNodeWithText(AppContentContract.PrimaryCta).assertDisplayedAfterScroll()
         composeRule.onNodeWithText(AppContentContract.SampleAudio).assertDisplayedAfterScroll()
-        composeRule.onNodeWithText(AppContentContract.UploadAudio).assertDisplayedAfterScroll()
-        composeRule.onNodeWithText(AppContentContract.StartRecording).assertDisplayedAfterScroll()
+
+        composeRule.onAllNodesWithText("上传音频").assertCountEquals(0)
+        composeRule.onAllNodesWithText("开始录音").assertCountEquals(0)
+        composeRule.onAllNodesWithText("麦克风").assertCountEquals(0)
+        composeRule.onAllNodesWithText("波形").assertCountEquals(0)
+        composeRule.onAllNodesWithText("嘴型时间轴").assertCountEquals(0)
+        composeRule.onAllNodesWithText("文本高亮").assertCountEquals(0)
+        composeRule.onAllNodesWithText("延迟校准").assertCountEquals(0)
+        composeRule.onAllNodesWithText("同步调试").assertCountEquals(0)
+        composeRule.onAllNodesWithText("手动嘴型测试").assertCountEquals(0)
+
         composeRule
             .onNodeWithContentDescription(
                 expectedStageDescription(
@@ -74,39 +93,39 @@ class DigitalDogAppTest {
     }
 
     @Test
-    fun appSupportsLandscapeAndPortraitLayoutBranches() {
+    fun appSupportsLandscapeAndPortraitWithStatusSummary() {
         composeRule.activity.setContent {
             RoomyLandscapeHost {
-                DigitalDogApp(layoutMode = AppLayoutMode.Landscape)
+                DigitalDogApp(
+                    layoutMode = AppLayoutMode.Landscape,
+                    autoAdvanceSpeech = false,
+                )
             }
         }
 
-        composeRule.onNodeWithTag(AppContentContract.TagDebugPanel).assertIsDisplayed()
-        composeRule.onNodeWithText(AppContentContract.DebugTitle).assertIsDisplayed()
-        composeRule.onNodeWithText(AppContentContract.CurrentMouthClosed).assertExists()
+        composeRule.onNodeWithTag(AppContentContract.TagStatusSummary).assertIsDisplayed()
+        composeRule.onNodeWithText(AppContentContract.StatusSummaryTitle).assertIsDisplayed()
+        composeRule.onNodeWithText(AppContentContract.CurrentStateIdle).assertIsDisplayed()
 
         composeRule.activity.setContent {
             DigitalDogApp(layoutMode = AppLayoutMode.Portrait)
         }
 
-        composeRule.onNodeWithTag(AppContentContract.TagDebugSummary).assertExists()
-        composeRule.onNodeWithText(AppContentContract.DebugSummaryTitle).assertExists()
-        composeRule.onNodeWithText(AppContentContract.CurrentStateIdle).assertExists()
-        composeRule.onNodeWithText(AppContentContract.QualityReady).assertExists()
+        composeRule.onNodeWithTag(AppContentContract.TagStatusSummary).assertDisplayedAfterScroll()
+        composeRule.onNodeWithText(AppContentContract.StatusSummaryTitle).assertDisplayedAfterScroll()
+        composeRule.onNodeWithText(AppContentContract.CurrentStateIdle).assertDisplayedAfterScroll()
     }
 
     @Test
-    fun mockStateInjectionSyncsTopBarStageAndLandscapeDebugPanel() {
-        val petStates = listOf(
+    fun injectedStatesSyncTopBarStageAndStatusSummary() {
+        listOf(
             PetState.Idle,
             PetState.Listening,
             PetState.Thinking,
             PetState.Speaking,
             PetState.Done,
             PetState.Error,
-        )
-
-        petStates.forEach { petState ->
+        ).forEach { petState ->
             val uiState = SpeechDemoState(petState = petState)
             val presentation = uiState.toPresentation()
 
@@ -124,6 +143,11 @@ class DigitalDogAppTest {
                     AppContentContract.statusBarDescription(
                         stateLabel = presentation.stateLabel,
                         inputSourceLabel = uiState.inputSource.label,
+                        mouthStateLabel = if (petState == PetState.Speaking) {
+                            AppContentContract.MouthStateTalking
+                        } else {
+                            AppContentContract.MouthStateClosed
+                        },
                         stateDescription = presentation.stateDescription,
                         collarDescription = presentation.collar.description,
                     ),
@@ -141,80 +165,75 @@ class DigitalDogAppTest {
                 .assertExists()
             composeRule
                 .onNodeWithContentDescription(
-                    AppContentContract.debugPanelDescription(
-                        mouthId = uiState.currentMouth.stableId,
+                    AppContentContract.statusSummaryDescription(
+                        mouthStateLabel = if (petState == PetState.Speaking) {
+                            AppContentContract.MouthStateTalking
+                        } else {
+                            AppContentContract.MouthStateClosed
+                        },
                         stateLabel = presentation.stateLabel,
                         inputSourceLabel = uiState.inputSource.label,
-                        qualityLabel = uiState.timelineQuality.label,
                         collarDescription = presentation.collar.description,
                     ),
                     useUnmergedTree = true,
                 )
                 .assertExists()
             composeRule.onNodeWithText(AppContentContract.currentStateText(presentation.stateLabel)).assertIsDisplayed()
-            composeRule.onNodeWithText(AppContentContract.currentMouthText(uiState.currentMouth.stableId)).assertIsDisplayed()
-            composeRule
-                .onAllNodesWithText(AppContentContract.inputSourceText(uiState.inputSource.label))
-                .assertCountEquals(2)
-            composeRule.onNodeWithText(AppContentContract.qualityText(uiState.timelineQuality.label)).assertIsDisplayed()
         }
     }
 
     @Test
-    fun portraitDebugSummaryReflectsInjectedState() {
-        val uiState = SpeechDemoState(petState = PetState.Error)
-        val presentation = uiState.toPresentation()
-
-        composeRule.activity.setContent {
-            DigitalDogApp(
-                layoutMode = AppLayoutMode.Portrait,
-                uiState = uiState,
-            )
-        }
-
-        composeRule.onNodeWithTag(AppContentContract.TagDebugSummary).assertExists()
-        composeRule
-            .onNodeWithContentDescription(
-                AppContentContract.debugSummaryDescription(
-                    mouthId = uiState.currentMouth.stableId,
-                    stateLabel = presentation.stateLabel,
-                    inputSourceLabel = uiState.inputSource.label,
-                    qualityLabel = uiState.timelineQuality.label,
-                    collarDescription = presentation.collar.description,
-                ),
-                useUnmergedTree = true,
-            )
-            .assertExists()
-        composeRule.onNodeWithText(AppContentContract.currentStateText(presentation.stateLabel)).assertExists()
-        composeRule.onNodeWithText(AppContentContract.currentMouthText(uiState.currentMouth.stableId)).assertExists()
-    }
-
-    @Test
-    fun manualMouthControlsDriveStageAndLandscapeDebugPanel() {
-        composeRule.activity.setContent {
-            RoomyLandscapeHost {
-                DigitalDogApp(layoutMode = AppLayoutMode.Landscape)
+    fun textSubmitShowsPreparingThenSpeakingMouthAndDisablesPrimaryCta() {
+        composeRule.mainClock.autoAdvance = false
+        try {
+            composeRule.activity.setContent {
+                RoomyLandscapeHost {
+                    DigitalDogApp(layoutMode = AppLayoutMode.Landscape)
+                }
             }
-        }
 
-        composeRule
-            .onNodeWithTag(AppContentContract.TagManualMouthTest)
-            .performScrollTo()
-            .assertIsDisplayed()
-
-        MouthShape.entries.forEach { mouth ->
             composeRule
-                .onNodeWithText(AppContentContract.manualMouthButtonText(mouth))
-                .performScrollTo()
+                .onNodeWithTag(AppContentContract.TagTtsInputField)
+                .performTextInput("你好数字狗")
+            composeRule
+                .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
                 .performClick()
+
+            val preparingState = SpeechDemoState(
+                petState = PetState.Thinking,
+                currentMouth = MouthShape.Closed,
+                inputSource = InputSource.Tts,
+                speechAnimationState = SpeechAnimationState.Preparing,
+            )
+            composeRule
+                .onNodeWithContentDescription(
+                    expectedStageDescription(
+                        uiState = preparingState,
+                        motionPolicy = ReduceMotionPolicy.Normal,
+                    ),
+                    useUnmergedTree = true,
+                )
+                .assertExists()
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateClosed)).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
+            composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsNotEnabled()
+            composeRule.onNodeWithTag(AppContentContract.TagSampleCta).assertIsNotEnabled()
+
+            composeRule.mainClock.advanceTimeBy(SpeechAnimationState.Preparing.estimatedDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            val expectedState = SpeechDemoState(
+                petState = PetState.Speaking,
+                currentMouth = MouthShape.Open,
+                inputSource = InputSource.Tts,
+                speechAnimationState = SpeechAnimationState.Speaking,
+            )
+            val presentation = expectedState.toPresentation()
 
             composeRule
                 .onNodeWithContentDescription(
                     expectedStageDescription(
-                        uiState = SpeechDemoState(
-                            currentMouth = mouth,
-                            inputSource = InputSource.Manual,
-                        ),
+                        uiState = expectedState,
                         motionPolicy = ReduceMotionPolicy.Normal,
                     ),
                     useUnmergedTree = true,
@@ -222,108 +241,151 @@ class DigitalDogAppTest {
                 .assertExists()
             composeRule
                 .onNodeWithContentDescription(
-                    AppContentContract.manualMouthTestDescription(
-                        currentMouth = mouth,
-                        inputSourceLabel = InputSource.Manual.label,
+                    AppContentContract.statusSummaryDescription(
+                        mouthStateLabel = AppContentContract.MouthStateTalking,
+                        stateLabel = presentation.stateLabel,
+                        inputSourceLabel = expectedState.inputSource.label,
+                        collarDescription = presentation.collar.description,
                     ),
                     useUnmergedTree = true,
                 )
                 .assertExists()
-            composeRule.onNodeWithText(AppContentContract.currentMouthText(mouth.stableId)).assertIsDisplayed()
-            composeRule
-                .onAllNodesWithText(AppContentContract.inputSourceText(InputSource.Manual.label))
-                .assertCountEquals(2)
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateTalking)).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.inputSourceText(InputSource.Tts.label)).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
+            composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsNotEnabled()
+            composeRule.onNodeWithTag(AppContentContract.TagSampleCta).assertIsNotEnabled()
+        } finally {
+            composeRule.mainClock.autoAdvance = true
         }
-
-        composeRule.onNodeWithText(AppContentContract.ResetManualMouth).performClick()
-        composeRule.onNodeWithText(AppContentContract.CurrentMouthClosed).assertIsDisplayed()
-        composeRule
-            .onAllNodesWithText(AppContentContract.inputSourceText(InputSource.None.label))
-            .assertCountEquals(2)
     }
 
     @Test
-    fun manualMouthControlsUpdatePortraitDebugSummary() {
+    fun sampleSubmitCompletesFeedbackAndRestoresActions() {
+        composeRule.mainClock.autoAdvance = false
+        try {
+            composeRule.activity.setContent {
+                RoomyLandscapeHost {
+                    DigitalDogApp(layoutMode = AppLayoutMode.Landscape)
+                }
+            }
+
+            composeRule
+                .onNodeWithTag(AppContentContract.TagSampleCta)
+                .performClick()
+
+            val preparingState = SpeechDemoState(
+                petState = PetState.Thinking,
+                currentMouth = MouthShape.Closed,
+                inputSource = InputSource.Sample,
+                speechAnimationState = SpeechAnimationState.Preparing,
+            )
+            composeRule
+                .onNodeWithContentDescription(
+                    expectedStageDescription(
+                        uiState = preparingState,
+                        motionPolicy = ReduceMotionPolicy.Normal,
+                    ),
+                    useUnmergedTree = true,
+                )
+                .assertExists()
+            composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
+            composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsNotEnabled()
+            composeRule.onNodeWithTag(AppContentContract.TagSampleCta).assertIsNotEnabled()
+            composeRule.onNodeWithText(AppContentContract.inputSourceText(InputSource.Sample.label)).assertIsDisplayed()
+
+            composeRule.mainClock.advanceTimeBy(SpeechAnimationState.Preparing.estimatedDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            val speakingState = SpeechDemoState(
+                petState = PetState.Speaking,
+                currentMouth = MouthShape.Open,
+                inputSource = InputSource.Sample,
+                speechAnimationState = SpeechAnimationState.Speaking,
+            )
+            composeRule
+                .onNodeWithContentDescription(
+                    expectedStageDescription(
+                        uiState = speakingState,
+                        motionPolicy = ReduceMotionPolicy.Normal,
+                    ),
+                    useUnmergedTree = true,
+                )
+                .assertExists()
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateTalking)).assertIsDisplayed()
+
+            composeRule.mainClock.advanceTimeBy(DefaultSpeechAnimationDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            val doneState = SpeechDemoState(
+                petState = PetState.Done,
+                currentMouth = MouthShape.Closed,
+                inputSource = InputSource.Sample,
+                speechAnimationState = SpeechAnimationState.Done,
+            )
+            composeRule
+                .onNodeWithContentDescription(
+                    expectedStageDescription(
+                        uiState = doneState,
+                        motionPolicy = ReduceMotionPolicy.Normal,
+                    ),
+                    useUnmergedTree = true,
+                )
+                .assertExists()
+            composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsEnabled()
+            composeRule.onNodeWithTag(AppContentContract.TagSampleCta).assertIsEnabled()
+
+            composeRule.mainClock.advanceTimeBy(DefaultCompletionFeedbackDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            composeRule.onNodeWithText(AppContentContract.CurrentStateIdle).assertIsDisplayed()
+            composeRule.onNodeWithTag(AppContentContract.TagSampleCta).assertIsEnabled()
+        } finally {
+            composeRule.mainClock.autoAdvance = true
+        }
+    }
+
+    @Test
+    fun emptySubmitShowsRecoverableErrorAndAllowsRetry() {
         composeRule.activity.setContent {
-            DigitalDogApp(layoutMode = AppLayoutMode.Portrait)
+            DigitalDogApp(
+                layoutMode = AppLayoutMode.Portrait,
+                autoAdvanceSpeech = false,
+            )
         }
 
         composeRule
-            .onNodeWithText(AppContentContract.manualMouthButtonText(MouthShape.Wide))
+            .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
             .performScrollTo()
             .performClick()
 
-        composeRule.onNodeWithTag(AppContentContract.TagDebugSummary).assertExists()
-        composeRule.onNodeWithText(AppContentContract.currentMouthText(MouthShape.Wide.stableId)).assertExists()
-        composeRule
-            .onAllNodesWithText(AppContentContract.inputSourceText(InputSource.Manual.label))
-            .assertCountEquals(2)
-    }
+        composeRule.onNodeWithText(AppContentContract.EmptyTtsInputError).assertIsDisplayed()
 
-    @Test
-    fun manualMouthControlsKeepMinimumTouchTarget() {
-        composeRule.activity.setContent {
-            Box(modifier = Modifier.size(width = 900.dp, height = 760.dp)) {
-                DigitalDogApp()
-            }
-        }
-
-        MouthShape.entries.forEach { mouth ->
-            composeRule
-                .onNode(hasText(AppContentContract.manualMouthButtonText(mouth)) and hasClickAction())
-                .assertHeightIsAtLeast(48.dp)
-        }
-        composeRule
-            .onNode(hasText(AppContentContract.ResetManualMouth) and hasClickAction())
-            .assertHeightIsAtLeast(48.dp)
-    }
-
-    @Test
-    fun injectedNonClosedMouthRendersThroughStageAndDebugSemantics() {
-        val uiState = SpeechDemoState(currentMouth = MouthShape.Round, inputSource = InputSource.Manual)
-
-        composeRule.activity.setContent {
-            RoomyLandscapeHost {
-                DigitalDogApp(
-                    layoutMode = AppLayoutMode.Landscape,
-                    uiState = uiState,
-                )
-            }
-        }
-
+        val errorState = SpeechDemoState(
+            petState = PetState.Error,
+            inputSource = InputSource.Tts,
+        )
         composeRule
             .onNodeWithContentDescription(
                 expectedStageDescription(
-                    uiState = uiState,
+                    uiState = errorState,
                     motionPolicy = ReduceMotionPolicy.Normal,
                 ),
                 useUnmergedTree = true,
             )
             .assertExists()
-        composeRule.onNodeWithText(AppContentContract.currentMouthText(MouthShape.Round.stableId)).assertIsDisplayed()
+
         composeRule
-            .onAllNodesWithText(AppContentContract.inputSourceText(InputSource.Manual.label))
-            .assertCountEquals(2)
-    }
+            .onNodeWithTag(AppContentContract.TagTtsInputField)
+            .performTextInput("重试一句话")
+        composeRule.onAllNodesWithText(AppContentContract.EmptyTtsInputError).assertCountEquals(0)
+        composeRule
+            .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
+            .performClick()
 
-    @Test
-    fun automaticLayoutUsesRoomyLandscapeOnlyWhenWidthAndHeightAllowIt() {
-        composeRule.activity.setContent {
-            Box(modifier = Modifier.size(width = 900.dp, height = 760.dp)) {
-                DigitalDogApp()
-            }
-        }
-
-        composeRule.onNodeWithTag(AppContentContract.TagDebugPanel).assertExists()
-
-        composeRule.activity.setContent {
-            Box(modifier = Modifier.size(width = 700.dp, height = 420.dp)) {
-                DigitalDogApp()
-            }
-        }
-
-        composeRule.onNodeWithTag(AppContentContract.TagDebugPanel).assertDoesNotExist()
-        composeRule.onNodeWithTag(AppContentContract.TagDebugSummary).assertExists()
+        composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
+        composeRule.onNodeWithText(AppContentContract.currentStateText(AppContentContract.StatusThinking)).assertDisplayedAfterScroll()
+        composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateClosed)).assertDisplayedAfterScroll()
     }
 
     @Test
@@ -340,40 +402,67 @@ class DigitalDogAppTest {
         composeRule
             .onNode(hasText(AppContentContract.SampleAudio) and hasClickAction())
             .assertHeightIsAtLeast(48.dp)
-        composeRule
-            .onNode(hasText(AppContentContract.UploadAudio) and hasClickAction())
-            .assertHeightIsAtLeast(48.dp)
-        composeRule
-            .onNode(hasText(AppContentContract.StartRecording) and hasClickAction())
-            .assertHeightIsAtLeast(48.dp)
     }
 
     @Test
-    fun ttsNonEmptySubmitSyncsTopBarStageAndDebugPanel() {
+    fun compactPortraitKeepsCoreDemoControlsReachableAndReadable() {
         composeRule.activity.setContent {
-            RoomyLandscapeHost {
-                DigitalDogApp(layoutMode = AppLayoutMode.Landscape)
+            Box(modifier = Modifier.size(width = 360.dp, height = 720.dp)) {
+                DigitalDogApp(layoutMode = AppLayoutMode.Portrait)
             }
         }
 
-        composeRule
-            .onNodeWithTag(AppContentContract.TagTtsInputField)
-            .performTextInput("你好数字狗")
-        composeRule
-            .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
-            .performClick()
+        val textInput = composeRule.onNodeWithTag(AppContentContract.TagTtsInputField)
+        val primaryCta = composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
+        val sampleCta = composeRule.onNodeWithTag(AppContentContract.TagSampleCta)
 
-        val expectedState = SpeechDemoState(
-            petState = PetState.Thinking,
-            inputSource = InputSource.Tts,
+        composeRule.onNodeWithTag(AppContentContract.TagPetStage).assertIsDisplayed()
+        composeRule.onNodeWithTag(AppContentContract.TagSpeechInput).assertDisplayedAfterScroll()
+        textInput.assertDisplayedAfterScroll()
+        primaryCta.assertDisplayedAfterScroll()
+        sampleCta.assertDisplayedAfterScroll()
+        composeRule.onNodeWithTag(AppContentContract.TagStatusSummary).assertDisplayedAfterScroll()
+        primaryCta
+            .assertHeightIsAtLeast(48.dp)
+            .assertWidthIsAtLeast(120.dp)
+        sampleCta
+            .assertHeightIsAtLeast(48.dp)
+            .assertWidthIsAtLeast(120.dp)
+
+        primaryCta.performScrollTo()
+        sampleCta.assertIsDisplayed()
+        assertBoundsDoNotOverlap(primaryCta, sampleCta, "primary CTA", "sample CTA")
+
+        textInput.performScrollTo()
+        primaryCta.assertIsDisplayed()
+        assertBoundsDoNotOverlap(textInput, primaryCta, "text input", "primary CTA")
+    }
+
+    @Test
+    fun injectedOpenMouthWithoutSpeakingReportsOpenMouthSemantics() {
+        val openMouthIdle = SpeechDemoState(
+            petState = PetState.Idle,
+            currentMouth = MouthShape.Open,
+            speechAnimationState = SpeechAnimationState.Idle,
         )
-        val presentation = expectedState.toPresentation()
+        val presentation = openMouthIdle.toPresentation()
+
+        composeRule.activity.setContent {
+            RoomyLandscapeHost {
+                DigitalDogApp(
+                    layoutMode = AppLayoutMode.Landscape,
+                    uiState = openMouthIdle,
+                    autoAdvanceSpeech = false,
+                )
+            }
+        }
 
         composeRule
             .onNodeWithContentDescription(
                 AppContentContract.statusBarDescription(
                     stateLabel = presentation.stateLabel,
-                    inputSourceLabel = InputSource.Tts.label,
+                    inputSourceLabel = openMouthIdle.inputSource.label,
+                    mouthStateLabel = AppContentContract.MouthStateOpen,
                     stateDescription = presentation.stateDescription,
                     collarDescription = presentation.collar.description,
                 ),
@@ -382,221 +471,259 @@ class DigitalDogAppTest {
             .assertExists()
         composeRule
             .onNodeWithContentDescription(
-                expectedStageDescription(
-                    uiState = expectedState,
-                    motionPolicy = ReduceMotionPolicy.Normal,
-                ),
-                useUnmergedTree = true,
-            )
-            .assertExists()
-        composeRule
-            .onNodeWithContentDescription(
-                AppContentContract.debugPanelDescription(
-                    mouthId = expectedState.currentMouth.stableId,
+                AppContentContract.statusSummaryDescription(
+                    mouthStateLabel = AppContentContract.MouthStateOpen,
                     stateLabel = presentation.stateLabel,
-                    inputSourceLabel = expectedState.inputSource.label,
-                    qualityLabel = expectedState.timelineQuality.label,
+                    inputSourceLabel = openMouthIdle.inputSource.label,
                     collarDescription = presentation.collar.description,
                 ),
                 useUnmergedTree = true,
             )
             .assertExists()
-        composeRule.onNodeWithText(AppContentContract.currentMouthText(MouthShape.Closed.stableId)).assertIsDisplayed()
-        composeRule
-            .onAllNodesWithText(AppContentContract.inputSourceText(InputSource.Tts.label))
-            .assertCountEquals(2)
-        composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
-        composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsNotEnabled()
-    }
-
-    @Test
-    fun ttsEmptySubmitShowsRecoverableErrorAndAllowsRetry() {
-        composeRule.activity.setContent {
-            DigitalDogApp(layoutMode = AppLayoutMode.Portrait)
-        }
-
-        composeRule
-            .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
-            .performScrollTo()
-            .performClick()
-
-        val errorState = SpeechDemoState(
-            petState = PetState.Error,
-            inputSource = InputSource.Tts,
-        )
-
-        composeRule.onNodeWithText(AppContentContract.EmptyTtsInputError).assertIsDisplayed()
         composeRule
             .onNodeWithContentDescription(
                 expectedStageDescription(
-                    uiState = errorState,
+                    uiState = openMouthIdle,
                     motionPolicy = ReduceMotionPolicy.Normal,
                 ),
                 useUnmergedTree = true,
             )
             .assertExists()
-        val errorPresentation = errorState.toPresentation()
         composeRule
-            .onNodeWithContentDescription(
-                AppContentContract.debugSummaryDescription(
-                    mouthId = errorState.currentMouth.stableId,
-                    stateLabel = errorPresentation.stateLabel,
-                    inputSourceLabel = errorState.inputSource.label,
-                    qualityLabel = errorState.timelineQuality.label,
-                    collarDescription = errorPresentation.collar.description,
-                ),
-                useUnmergedTree = true,
-            )
-            .assertExists()
-
-        composeRule
-            .onNodeWithTag(AppContentContract.TagTtsInputField)
-            .performTextInput("重试一句话")
-        composeRule.onNodeWithText(AppContentContract.EmptyTtsInputError).assertDoesNotExist()
-        composeRule
-            .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
-            .performClick()
-
-        composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
-        val retryState = SpeechDemoState(
-            petState = PetState.Thinking,
-            inputSource = InputSource.Tts,
-        )
-        val retryPresentation = retryState.toPresentation()
-        composeRule
-            .onNodeWithContentDescription(
-                AppContentContract.debugSummaryDescription(
-                    mouthId = retryState.currentMouth.stableId,
-                    stateLabel = retryPresentation.stateLabel,
-                    inputSourceLabel = retryState.inputSource.label,
-                    qualityLabel = retryState.timelineQuality.label,
-                    collarDescription = retryPresentation.collar.description,
-                ),
-                useUnmergedTree = true,
-            )
-            .assertExists()
-        composeRule
-            .onAllNodesWithText(AppContentContract.inputSourceText(InputSource.Tts.label))
-            .assertCountEquals(2)
+            .onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateOpen))
+            .assertIsDisplayed()
     }
 
     @Test
-    fun busyTtsSessionDisablesPrimaryCtaToPreventSecondSubmit() {
+    fun defaultTalkBackSemanticsNameMainFlowControlsAndValues() {
+        val idle = SpeechDemoState()
+        val presentation = idle.toPresentation()
+
         composeRule.activity.setContent {
-            DigitalDogApp(
-                layoutMode = AppLayoutMode.Portrait,
-                uiState = SpeechDemoState(ttsInputText = "已有一句"),
-            )
+            RoomyLandscapeHost {
+                DigitalDogApp(
+                    layoutMode = AppLayoutMode.Landscape,
+                    autoAdvanceSpeech = false,
+                )
+            }
         }
 
         composeRule
-            .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
-            .performScrollTo()
-            .performClick()
-
+            .onNodeWithContentDescription(
+                AppContentContract.statusBarDescription(
+                    stateLabel = presentation.stateLabel,
+                    inputSourceLabel = idle.inputSource.label,
+                    mouthStateLabel = AppContentContract.MouthStateClosed,
+                    stateDescription = presentation.stateDescription,
+                    collarDescription = presentation.collar.description,
+                ),
+                useUnmergedTree = true,
+            )
+            .assertExists()
         composeRule
-            .onNodeWithTag(AppContentContract.TagTtsInputField)
-            .performTextClearance()
+            .onNodeWithContentDescription(
+                AppContentContract.ttsInputDescription(
+                    errorText = null,
+                    isBusy = false,
+                ),
+                useUnmergedTree = true,
+            )
+            .assertExists()
         composeRule
-            .onNodeWithTag(AppContentContract.TagTtsInputField)
-            .performTextInput("第二句")
+            .onNodeWithContentDescription(
+                AppContentContract.primaryTtsCtaDescription(isBusy = false),
+                useUnmergedTree = true,
+            )
+            .assertExists()
+        composeRule
+            .onNodeWithContentDescription(
+                AppContentContract.statusSummaryDescription(
+                    mouthStateLabel = AppContentContract.MouthStateClosed,
+                    stateLabel = presentation.stateLabel,
+                    inputSourceLabel = idle.inputSource.label,
+                    collarDescription = presentation.collar.description,
+                ),
+                useUnmergedTree = true,
+            )
+            .assertExists()
 
-        composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsNotEnabled()
-        composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
-        composeRule.onNodeWithText(AppContentContract.EmptyTtsInputError).assertDoesNotExist()
+        composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).performClick()
+        composeRule
+            .onNodeWithContentDescription(
+                AppContentContract.ttsInputDescription(
+                    errorText = AppContentContract.EmptyTtsInputError,
+                    isBusy = false,
+                ),
+                useUnmergedTree = true,
+            )
+            .assertExists()
+        composeRule.onNodeWithText(AppContentContract.EmptyTtsInputError).assertIsDisplayed()
     }
 
     @Test
-    fun stageSemanticsIncludeMotionSummaryAndPolicyForKeyStates() {
-        listOf(
-            PetState.Idle,
-            PetState.Speaking,
-            PetState.Done,
-            PetState.Error,
-        ).forEach { petState ->
-            val uiState = SpeechDemoState(petState = petState)
+    fun reducedMotionInjectionKeepsSpeakingMouthObservableInStageSemantics() {
+        val uiState = SpeechDemoState(
+            petState = PetState.Speaking,
+            currentMouth = MouthShape.Open,
+            inputSource = InputSource.Tts,
+            speechAnimationState = SpeechAnimationState.Speaking,
+        )
 
+        composeRule.activity.setContent {
+            RoomyLandscapeHost {
+                DigitalDogApp(
+                    layoutMode = AppLayoutMode.Landscape,
+                    uiState = uiState,
+                    motionPolicy = ReduceMotionPolicy.Reduced,
+                )
+            }
+        }
+
+        composeRule
+            .onNodeWithContentDescription(
+                expectedStageDescription(
+                    uiState = uiState,
+                    motionPolicy = ReduceMotionPolicy.Reduced,
+                ),
+                useUnmergedTree = true,
+            )
+            .assertExists()
+        composeRule.onNodeWithTag(AppContentContract.TagPetFigure).assertExists()
+        composeRule.onNodeWithTag(AppContentContract.TagDogMouth, useUnmergedTree = true).assertExists()
+    }
+
+    @Test
+    fun autoAdvanceSpeechShowsDoneFeedbackThenReturnsIdle() {
+        composeRule.mainClock.autoAdvance = false
+        try {
             composeRule.activity.setContent {
                 RoomyLandscapeHost {
-                    DigitalDogApp(
-                        layoutMode = AppLayoutMode.Landscape,
-                        uiState = uiState,
-                        motionPolicy = ReduceMotionPolicy.Normal,
-                    )
+                    DigitalDogApp(layoutMode = AppLayoutMode.Landscape)
                 }
             }
 
             composeRule
+                .onNodeWithTag(AppContentContract.TagTtsInputField)
+                .performTextInput("完成反馈")
+            composeRule
+                .onNodeWithTag(AppContentContract.TagPrimaryTtsCta)
+                .performClick()
+
+            composeRule.onNodeWithText(AppContentContract.PrimaryCtaBusy).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateClosed)).assertIsDisplayed()
+
+            composeRule.mainClock.advanceTimeBy(SpeechAnimationState.Preparing.estimatedDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateTalking)).assertIsDisplayed()
+
+            composeRule.mainClock.advanceTimeBy(DefaultSpeechAnimationDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            val doneState = SpeechDemoState(
+                petState = PetState.Done,
+                currentMouth = MouthShape.Closed,
+                inputSource = InputSource.Tts,
+                speechAnimationState = SpeechAnimationState.Done,
+            )
+            val donePresentation = doneState.toPresentation()
+            composeRule
                 .onNodeWithContentDescription(
                     expectedStageDescription(
-                        uiState = uiState,
+                        uiState = doneState,
                         motionPolicy = ReduceMotionPolicy.Normal,
                     ),
                     useUnmergedTree = true,
                 )
                 .assertExists()
-            composeRule.onNodeWithTag(AppContentContract.TagPetFigure).assertExists()
-            composeRule.onNodeWithTag(AppContentContract.TagDogMouth, useUnmergedTree = true).assertExists()
+            composeRule.onNodeWithText(AppContentContract.currentStateText(donePresentation.stateLabel)).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.inputSourceText(InputSource.Tts.label)).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.PrimaryCta).assertIsDisplayed()
+            composeRule.onNodeWithTag(AppContentContract.TagPrimaryTtsCta).assertIsEnabled()
+
+            composeRule.mainClock.advanceTimeBy(DefaultCompletionFeedbackDurationMs.toLong() + 1L)
+            composeRule.waitForIdle()
+
+            composeRule.onNodeWithText(AppContentContract.CurrentStateIdle).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.inputSourceText(InputSource.None.label)).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateClosed)).assertIsDisplayed()
+        } finally {
+            composeRule.mainClock.autoAdvance = true
         }
     }
 
     @Test
-    fun reducedMotionInjectionKeepsCurrentMouthObservableInStageSemantics() {
-        val uiState = SpeechDemoState(
-            petState = PetState.Speaking,
-            currentMouth = MouthShape.Wide,
-            inputSource = InputSource.Manual,
-        )
-
-        composeRule.activity.setContent {
-            RoomyLandscapeHost {
-                DigitalDogApp(
-                    layoutMode = AppLayoutMode.Landscape,
-                    uiState = uiState,
-                    motionPolicy = ReduceMotionPolicy.Reduced,
-                )
-            }
-        }
-
-        composeRule
-            .onNodeWithContentDescription(
-                expectedStageDescription(
-                    uiState = uiState,
-                    motionPolicy = ReduceMotionPolicy.Reduced,
+    fun doneFeedbackReturnsIdleForEquivalentNonSpeakingCue() {
+        composeRule.mainClock.autoAdvance = false
+        try {
+            val doneWithBlinkCue = SpeechDemoState(
+                petState = PetState.Done,
+                currentMouth = MouthShape.Closed,
+                inputSource = InputSource.Sample,
+                speechAnimationState = SpeechAnimationState(
+                    isSpeaking = false,
+                    mouthOpen = false,
+                    estimatedDurationMs = 0,
+                    actionCue = DogActionCue.Blink,
                 ),
-                useUnmergedTree = true,
             )
-            .assertExists()
-        composeRule.onNodeWithText(AppContentContract.currentMouthText(MouthShape.Wide.stableId)).assertIsDisplayed()
-        composeRule.onNodeWithTag(AppContentContract.TagPetFigure).assertExists()
-        composeRule.onNodeWithTag(AppContentContract.TagDogMouth, useUnmergedTree = true).assertExists()
+
+            composeRule.activity.setContent {
+                RoomyLandscapeHost {
+                    DigitalDogApp(
+                        layoutMode = AppLayoutMode.Landscape,
+                        uiState = doneWithBlinkCue,
+                    )
+                }
+            }
+
+            composeRule.mainClock.advanceTimeBy(1L)
+            composeRule.waitForIdle()
+
+            composeRule.onNodeWithText(AppContentContract.CurrentStateIdle).assertIsDisplayed()
+            composeRule.onNodeWithText(AppContentContract.inputSourceText(InputSource.None.label)).assertIsDisplayed()
+        } finally {
+            composeRule.mainClock.autoAdvance = true
+        }
     }
 
     @Test
-    fun staticMotionPolicyProvidesStableComposeTestPath() {
-        val uiState = SpeechDemoState(petState = PetState.Done)
-
-        composeRule.activity.setContent {
-            RoomyLandscapeHost {
-                DigitalDogApp(
-                    layoutMode = AppLayoutMode.Landscape,
-                    uiState = uiState,
-                    motionPolicy = ReduceMotionPolicy.Static,
-                )
-            }
-        }
-
-        composeRule
-            .onNodeWithContentDescription(
-                expectedStageDescription(
-                    uiState = uiState,
-                    motionPolicy = ReduceMotionPolicy.Static,
+    fun injectedNegativePreparationDurationDoesNotCrashAutoAdvance() {
+        composeRule.mainClock.autoAdvance = false
+        try {
+            val preparingWithNegativeDelay = SpeechDemoState(
+                petState = PetState.Thinking,
+                currentMouth = MouthShape.Closed,
+                inputSource = InputSource.Tts,
+                activeSpeechSession = SpeechSession(
+                    id = "negative-delay-1",
+                    source = InputSource.Tts,
+                    text = "负数 duration",
                 ),
-                useUnmergedTree = true,
+                speechAnimationState = SpeechAnimationState(
+                    isSpeaking = false,
+                    mouthOpen = false,
+                    estimatedDurationMs = -1,
+                    actionCue = DogActionCue.EarPerk,
+                ),
             )
-            .assertExists()
-        composeRule.onNodeWithTag(AppContentContract.TagPetFigure).assertExists()
-        composeRule.onNodeWithTag(AppContentContract.TagDogMouth, useUnmergedTree = true).assertExists()
+
+            composeRule.activity.setContent {
+                RoomyLandscapeHost {
+                    DigitalDogApp(
+                        layoutMode = AppLayoutMode.Landscape,
+                        uiState = preparingWithNegativeDelay,
+                    )
+                }
+            }
+
+            composeRule.mainClock.advanceTimeBy(1L)
+            composeRule.waitForIdle()
+
+            composeRule.onNodeWithText(AppContentContract.mouthStateText(AppContentContract.MouthStateTalking)).assertIsDisplayed()
+        } finally {
+            composeRule.mainClock.autoAdvance = true
+        }
     }
 }
 
@@ -604,6 +731,27 @@ private fun SemanticsNodeInteraction.assertDisplayedAfterScroll() {
     runCatching { performScrollTo() }
     assertIsDisplayed()
 }
+
+private fun assertBoundsDoNotOverlap(
+    first: SemanticsNodeInteraction,
+    second: SemanticsNodeInteraction,
+    firstLabel: String,
+    secondLabel: String,
+) {
+    val firstBounds = first.getUnclippedBoundsInRoot()
+    val secondBounds = second.getUnclippedBoundsInRoot()
+
+    assertFalse(
+        "$firstLabel overlaps $secondLabel: $firstBounds vs $secondBounds",
+        firstBounds.overlaps(secondBounds),
+    )
+}
+
+private fun DpRect.overlaps(other: DpRect): Boolean =
+    left < other.right &&
+        right > other.left &&
+        top < other.bottom &&
+        bottom > other.top
 
 @Composable
 private fun RoomyLandscapeHost(content: @Composable () -> Unit) {
@@ -617,15 +765,24 @@ private fun expectedStageDescription(
     motionPolicy: ReduceMotionPolicy,
 ): String {
     val presentation = uiState.toPresentation()
-    val motionProfile = motionPolicy.applyTo(DogMotionProfile.forState(uiState.petState))
+    val motionProfile = motionPolicy.applyTo(
+        DogMotionProfile.forState(
+            petState = uiState.petState,
+            actionCue = uiState.speechAnimationState.actionCue,
+        ),
+    )
+    val isSpeakingMouthOpen = uiState.speechAnimationState.mouthOpen ||
+        uiState.petState == PetState.Speaking
+    val displayMouth = if (isSpeakingMouthOpen) MouthShape.Open else uiState.currentMouth
 
     return AppContentContract.stageDescription(
         stateLabel = presentation.stateLabel,
-        mouthLabel = AppContentContract.mouthSemanticLabel(uiState.currentMouth),
+        mouthLabel = AppContentContract.mouthSemanticLabel(displayMouth),
         inputSourceLabel = uiState.inputSource.label,
         stateDescription = AppContentContract.stageMouthStateDescription(
-            mouth = uiState.currentMouth,
+            mouth = displayMouth,
             stateDescription = presentation.stateDescription,
+            isSpeakingMouthOpen = isSpeakingMouthOpen,
         ),
         collarDescription = presentation.collar.description,
         motionDescription = motionProfile.summary,

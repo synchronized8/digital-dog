@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
@@ -21,6 +20,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,21 +34,21 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.digitaldog.demo.accessibility.ReduceMotionPolicy
-import com.digitaldog.demo.debugpanel.DebugPanelPlaceholder
-import com.digitaldog.demo.debugpanel.DebugSummaryPlaceholder
 import com.digitaldog.demo.designsystem.DigitalDogTheme
 import com.digitaldog.demo.designsystem.DogColors
 import com.digitaldog.demo.designsystem.DogShape
 import com.digitaldog.demo.designsystem.DogSpacing
 import com.digitaldog.demo.designsystem.DogTypography
 import com.digitaldog.demo.petstage.PetStagePlaceholder
-import com.digitaldog.demo.sharedmodel.MouthShape
+import com.digitaldog.demo.sharedmodel.PetState
 import com.digitaldog.demo.speechinput.SpeechInputPlaceholder
-import com.digitaldog.demo.state.ManualMouthTestReducer
+import com.digitaldog.demo.statussummary.StatusSummaryPlaceholder
 import com.digitaldog.demo.state.PetStatePresentation
 import com.digitaldog.demo.state.SpeechDemoState
+import com.digitaldog.demo.state.SpeechAnimationState
 import com.digitaldog.demo.state.TtsSubmitReducer
 import com.digitaldog.demo.state.toPresentation
+import kotlinx.coroutines.delay
 
 enum class AppLayoutMode {
     Landscape,
@@ -64,6 +64,7 @@ fun DigitalDogApp(
     layoutMode: AppLayoutMode? = null,
     uiState: SpeechDemoState = SpeechDemoState(),
     motionPolicy: ReduceMotionPolicy = ReduceMotionPolicy.Normal,
+    autoAdvanceSpeech: Boolean = true,
 ) {
     DigitalDogTheme {
         var currentUiState by remember(uiState) {
@@ -99,17 +100,56 @@ fun DigitalDogApp(
                     requestedLayout
                 }
                 val presentation = currentUiState.toPresentation()
-                val onMouthSelected: (MouthShape) -> Unit = { mouth ->
-                    currentUiState = ManualMouthTestReducer.selectMouth(currentUiState, mouth)
-                }
-                val onResetMouth: () -> Unit = {
-                    currentUiState = ManualMouthTestReducer.resetToIdle(currentUiState)
-                }
                 val onTtsTextChanged: (String) -> Unit = { text ->
                     currentUiState = TtsSubmitReducer.updateText(currentUiState, text)
                 }
                 val onSubmitTtsText: () -> Unit = {
                     currentUiState = TtsSubmitReducer.submitText(currentUiState)
+                }
+                val onPlaySample: () -> Unit = {
+                    currentUiState = TtsSubmitReducer.playSample(currentUiState)
+                }
+
+                if (autoAdvanceSpeech) {
+                    LaunchedEffect(
+                        currentUiState.petState,
+                        currentUiState.activeSpeechSession?.id,
+                        currentUiState.speechAnimationState,
+                    ) {
+                        when {
+                            currentUiState.petState == PetState.Thinking &&
+                                currentUiState.activeSpeechSession != null -> {
+                                val sessionId = currentUiState.activeSpeechSession?.id
+                                delay(currentUiState.speechAnimationState.safeDelayMillis())
+                                if (
+                                    currentUiState.petState == PetState.Thinking &&
+                                    currentUiState.activeSpeechSession?.id == sessionId
+                                ) {
+                                    currentUiState = TtsSubmitReducer.startSpeaking(currentUiState)
+                                }
+                            }
+
+                            currentUiState.petState == PetState.Speaking &&
+                                currentUiState.activeSpeechSession != null -> {
+                                val sessionId = currentUiState.activeSpeechSession?.id
+                                delay(currentUiState.speechAnimationState.safeDelayMillis())
+                                if (
+                                    currentUiState.petState == PetState.Speaking &&
+                                    currentUiState.activeSpeechSession?.id == sessionId
+                                ) {
+                                    currentUiState = TtsSubmitReducer.completeSpeaking(currentUiState)
+                                }
+                            }
+
+                            currentUiState.petState == PetState.Done &&
+                                !currentUiState.speechAnimationState.isSpeaking -> {
+                                delay(currentUiState.speechAnimationState.safeDelayMillis())
+                                if (currentUiState.petState == PetState.Done) {
+                                    currentUiState = TtsSubmitReducer.returnToIdleAfterCompletion(currentUiState)
+                                }
+                            }
+                        }
+                    }
                 }
 
                 when (resolvedLayout) {
@@ -117,20 +157,18 @@ fun DigitalDogApp(
                         uiState = currentUiState,
                         presentation = presentation,
                         motionPolicy = motionPolicy,
-                        onMouthSelected = onMouthSelected,
-                        onResetMouth = onResetMouth,
                         onTtsTextChanged = onTtsTextChanged,
                         onSubmitTtsText = onSubmitTtsText,
+                        onPlaySample = onPlaySample,
                     )
 
                     AppLayoutMode.Portrait -> PortraitHome(
                         uiState = currentUiState,
                         presentation = presentation,
                         motionPolicy = motionPolicy,
-                        onMouthSelected = onMouthSelected,
-                        onResetMouth = onResetMouth,
                         onTtsTextChanged = onTtsTextChanged,
                         onSubmitTtsText = onSubmitTtsText,
+                        onPlaySample = onPlaySample,
                     )
                 }
             }
@@ -138,15 +176,17 @@ fun DigitalDogApp(
     }
 }
 
+private fun SpeechAnimationState.safeDelayMillis(): Long =
+    estimatedDurationMs.coerceAtLeast(0).toLong()
+
 @Composable
 private fun LandscapeHome(
     uiState: SpeechDemoState,
     presentation: PetStatePresentation,
     motionPolicy: ReduceMotionPolicy,
-    onMouthSelected: (MouthShape) -> Unit,
-    onResetMouth: () -> Unit,
     onTtsTextChanged: (String) -> Unit,
     onSubmitTtsText: () -> Unit,
+    onPlaySample: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -156,36 +196,31 @@ private fun LandscapeHome(
             uiState = uiState,
             presentation = presentation,
         )
-        Row(
+        PetStagePlaceholder(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(DogSpacing.Xl),
+            uiState = uiState,
+            motionPolicy = motionPolicy,
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(DogSpacing.Md),
         ) {
-            PetStagePlaceholder(
-                modifier = Modifier
-                    .weight(3f)
-                    .fillMaxHeight(),
-                uiState = uiState,
-                motionPolicy = motionPolicy,
+            SpeechInputPlaceholder(
+                modifier = Modifier.weight(2f),
+                inputText = uiState.ttsInputText,
+                errorText = uiState.inputError,
+                isBusy = uiState.isSpeechSessionBusy,
+                onTextChanged = onTtsTextChanged,
+                onSubmitText = onSubmitTtsText,
+                onPlaySample = onPlaySample,
             )
-            DebugPanelPlaceholder(
-                modifier = Modifier
-                    .weight(2f)
-                    .fillMaxHeight(),
+            StatusSummaryPlaceholder(
+                modifier = Modifier.weight(1f),
                 uiState = uiState,
-                onMouthSelected = onMouthSelected,
-                onResetMouth = onResetMouth,
             )
         }
-        SpeechInputPlaceholder(
-            modifier = Modifier.fillMaxWidth(),
-            inputText = uiState.ttsInputText,
-            errorText = uiState.inputError,
-            isBusy = uiState.isSpeechSessionBusy,
-            onTextChanged = onTtsTextChanged,
-            onSubmitText = onSubmitTtsText,
-        )
     }
 }
 
@@ -194,10 +229,9 @@ private fun PortraitHome(
     uiState: SpeechDemoState,
     presentation: PetStatePresentation,
     motionPolicy: ReduceMotionPolicy,
-    onMouthSelected: (MouthShape) -> Unit,
-    onResetMouth: () -> Unit,
     onTtsTextChanged: (String) -> Unit,
     onSubmitTtsText: () -> Unit,
+    onPlaySample: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -222,12 +256,11 @@ private fun PortraitHome(
             isBusy = uiState.isSpeechSessionBusy,
             onTextChanged = onTtsTextChanged,
             onSubmitText = onSubmitTtsText,
+            onPlaySample = onPlaySample,
         )
-        DebugSummaryPlaceholder(
+        StatusSummaryPlaceholder(
             modifier = Modifier.fillMaxWidth(),
             uiState = uiState,
-            onMouthSelected = onMouthSelected,
-            onResetMouth = onResetMouth,
         )
     }
 }
@@ -250,6 +283,7 @@ private fun TopStatusBar(
                 contentDescription = AppContentContract.statusBarDescription(
                     stateLabel = presentation.stateLabel,
                     inputSourceLabel = uiState.inputSource.label,
+                    mouthStateLabel = uiState.mouthStateLabel(),
                     stateDescription = presentation.stateDescription,
                     collarDescription = presentation.collar.description,
                 )
@@ -321,8 +355,22 @@ private fun StatusInfoRow(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        Text(
+            text = AppContentContract.mouthStateText(uiState.mouthStateLabel()),
+            modifier = Modifier.weight(1f, fill = false),
+            color = DogColors.TextSecondary,
+            fontSize = DogTypography.Label,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
+
+private fun SpeechDemoState.mouthStateLabel(): String = AppContentContract.mouthStateLabel(
+    mouth = currentMouth,
+    isSpeakingMouthOpen = speechAnimationState.mouthOpen || petState == PetState.Speaking,
+)
 
 @Composable
 private fun StatusPill(

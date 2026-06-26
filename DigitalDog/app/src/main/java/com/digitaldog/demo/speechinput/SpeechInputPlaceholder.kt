@@ -40,6 +40,7 @@ fun SpeechInputPlaceholder(
     isBusy: Boolean = false,
     onTextChanged: (String) -> Unit = {},
     onSubmitText: () -> Unit = {},
+    onPlaySample: () -> Unit = {},
 ) {
     Column(
         modifier = modifier
@@ -108,6 +109,7 @@ fun SpeechInputPlaceholder(
                 CompactActionGrid(
                     isBusy = isBusy,
                     onSubmitText = onSubmitText,
+                    onPlaySample = onPlaySample,
                 )
             } else {
                 Row(
@@ -122,14 +124,8 @@ fun SpeechInputPlaceholder(
                     )
                     SecondaryActionButton(
                         text = AppContentContract.SampleAudio,
-                        modifier = Modifier.weight(1f),
-                    )
-                    ExperimentalActionButton(
-                        text = AppContentContract.UploadAudio,
-                        modifier = Modifier.weight(1f),
-                    )
-                    ExperimentalActionButton(
-                        text = AppContentContract.StartRecording,
+                        isBusy = isBusy,
+                        onClick = onPlaySample,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -142,6 +138,7 @@ fun SpeechInputPlaceholder(
 private fun CompactActionGrid(
     isBusy: Boolean,
     onSubmitText: () -> Unit,
+    onPlaySample: () -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(DogSpacing.Sm),
@@ -157,19 +154,8 @@ private fun CompactActionGrid(
         ) {
             SecondaryActionButton(
                 text = AppContentContract.SampleAudio,
-                modifier = Modifier.weight(1f),
-            )
-            ExperimentalActionButton(
-                text = AppContentContract.UploadAudio,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(DogSpacing.Sm),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            ExperimentalActionButton(
-                text = AppContentContract.StartRecording,
+                isBusy = isBusy,
+                onClick = onPlaySample,
                 modifier = Modifier.weight(1f),
             )
             Box(modifier = Modifier.weight(1f))
@@ -212,11 +198,16 @@ private fun PrimaryActionButton(
 @Composable
 private fun SecondaryActionButton(
     text: String,
+    isBusy: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     OutlinedButton(
-        onClick = {},
-        modifier = modifier.heightIn(min = DogSpacing.TouchTarget),
+        onClick = onClick,
+        enabled = !isBusy,
+        modifier = modifier
+            .heightIn(min = DogSpacing.TouchTarget)
+            .testTag(AppContentContract.TagSampleCta),
         shape = DogShape.Button,
     ) {
         Text(
@@ -228,35 +219,5 @@ private fun SecondaryActionButton(
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
         )
-    }
-}
-
-@Composable
-private fun ExperimentalActionButton(
-    text: String,
-    modifier: Modifier = Modifier,
-) {
-    OutlinedButton(
-        onClick = {},
-        modifier = modifier.heightIn(min = DogSpacing.TouchTarget),
-        shape = DogShape.Button,
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = text,
-                color = DogColors.TextPrimary,
-                fontSize = DogTypography.Button,
-                fontWeight = FontWeight.SemiBold,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = AppContentContract.Experimental,
-                color = DogColors.WarningText,
-                fontSize = DogTypography.Label,
-                fontWeight = FontWeight.Bold,
-            )
-        }
     }
 }

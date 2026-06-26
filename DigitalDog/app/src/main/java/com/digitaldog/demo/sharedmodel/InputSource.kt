@@ -8,12 +8,12 @@ enum class InputSource(
         stableId = "none",
         label = "未选择",
     ),
-    Manual(
-        stableId = "manual",
-        label = "手动测试",
-    ),
     Tts(
-        stableId = "tts",
-        label = "TTS",
+        stableId = "text",
+        label = "文本",
+    ),
+    Sample(
+        stableId = "sample",
+        label = "示例",
     ),
 }

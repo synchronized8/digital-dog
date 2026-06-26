@@ -5,8 +5,8 @@ import com.digitaldog.demo.designsystem.DogColors
 import com.digitaldog.demo.sharedmodel.InputSource
 import com.digitaldog.demo.sharedmodel.MouthShape
 import com.digitaldog.demo.sharedmodel.PetState
-import com.digitaldog.demo.sharedmodel.TimelineQuality
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -18,11 +18,10 @@ class PetStateReducerTest {
         assertEquals(PetState.Idle, state.petState)
         assertEquals(MouthShape.Closed, state.currentMouth)
         assertEquals(InputSource.None, state.inputSource)
-        assertEquals(TimelineQuality.Ready, state.timelineQuality)
     }
 
     @Test
-    fun petStateExposesStableLowercaseIdsOnlyForStoryOneThreeStates() {
+    fun petStateExposesStableLowercaseIdsOnlyForCurrentMvpStates() {
         assertEquals(
             listOf("idle", "listening", "thinking", "speaking", "done", "error"),
             PetState.entries.map { it.stableId },
@@ -30,9 +29,9 @@ class PetStateReducerTest {
     }
 
     @Test
-    fun mouthShapeExposesAllSevenStoryOneFourStableIdsAndLabels() {
+    fun mouthShapeExposesOnlyClosedAndOpenForCurrentMvp() {
         assertEquals(
-            listOf("closed", "small", "wide", "round", "smile", "teeth", "pant"),
+            listOf("closed", "open"),
             MouthShape.entries.map { it.stableId },
         )
 
@@ -41,40 +40,6 @@ class PetStateReducerTest {
             assertTrue(mouth.description.isNotBlank())
             assertTrue(mouth.accessibleLabel.contains(mouth.stableId))
         }
-    }
-
-    @Test
-    fun manualMouthTestSelectsAnyMouthAndMarksManualSource() {
-        MouthShape.entries.forEach { mouth ->
-            val state = ManualMouthTestReducer.selectMouth(SpeechDemoState(), mouth)
-
-            assertEquals(PetState.Idle, state.petState)
-            assertEquals(mouth, state.currentMouth)
-            assertEquals(InputSource.Manual, state.inputSource)
-            assertEquals(TimelineQuality.Ready, state.timelineQuality)
-        }
-    }
-
-    @Test
-    fun manualMouthTestSelectionDoesNotOverwriteCurrentPetState() {
-        val state = ManualMouthTestReducer.selectMouth(
-            current = SpeechDemoState(petState = PetState.Thinking),
-            mouth = MouthShape.Wide,
-        )
-
-        assertEquals(PetState.Thinking, state.petState)
-        assertEquals(MouthShape.Wide, state.currentMouth)
-        assertEquals(InputSource.Manual, state.inputSource)
-    }
-
-    @Test
-    fun manualMouthTestResetReturnsToDefaultIdleState() {
-        val manualState = ManualMouthTestReducer.selectMouth(
-            current = SpeechDemoState(),
-            mouth = MouthShape.Pant,
-        )
-
-        assertEquals(SpeechDemoState(), ManualMouthTestReducer.resetToIdle(manualState))
     }
 
     @Test
@@ -104,21 +69,40 @@ class PetStateReducerTest {
     }
 
     @Test
-    fun reducerKeepsEveryStoryOneThreeStateClosedMouth() {
-        val events = listOf(
+    fun reducerOpensMouthOnlyForSpeakingState() {
+        val speaking = PetStateReducer.reduce(SpeechDemoState(), PetStateEvent.EnterSpeaking)
+
+        assertEquals(MouthShape.Open, speaking.currentMouth)
+        assertTrue(speaking.speechAnimationState.mouthOpen)
+        assertEquals(DogActionCue.BodyBounce, speaking.speechAnimationState.actionCue)
+
+        listOf(
             PetStateEvent.EnterListening,
             PetStateEvent.EnterThinking,
-            PetStateEvent.EnterSpeaking,
             PetStateEvent.EnterDone,
             PetStateEvent.EnterError,
             PetStateEvent.ReturnToIdle,
-        )
-
-        events.forEach { event ->
+        ).forEach { event ->
             val state = PetStateReducer.reduce(SpeechDemoState(), event)
 
             assertEquals(MouthShape.Closed, state.currentMouth)
         }
+    }
+
+    @Test
+    fun reducerAssignsPlayfulActionCuesForPreparingDoneAndError() {
+        val thinking = PetStateReducer.reduce(SpeechDemoState(), PetStateEvent.EnterThinking)
+        val done = PetStateReducer.reduce(SpeechDemoState(), PetStateEvent.EnterDone)
+        val error = PetStateReducer.reduce(SpeechDemoState(), PetStateEvent.EnterError)
+
+        assertEquals(DogActionCue.EarPerk, thinking.speechAnimationState.actionCue)
+        assertFalse(thinking.speechAnimationState.mouthOpen)
+
+        assertEquals(DogActionCue.TailWag, done.speechAnimationState.actionCue)
+        assertFalse(done.speechAnimationState.mouthOpen)
+
+        assertEquals(DogActionCue.HeadTilt, error.speechAnimationState.actionCue)
+        assertFalse(error.speechAnimationState.mouthOpen)
     }
 
     @Test

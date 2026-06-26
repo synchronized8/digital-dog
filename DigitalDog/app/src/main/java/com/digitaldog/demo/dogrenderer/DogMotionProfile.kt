@@ -1,6 +1,7 @@
 package com.digitaldog.demo.dogrenderer
 
 import com.digitaldog.demo.sharedmodel.PetState
+import com.digitaldog.demo.state.DogActionCue
 
 data class DogMotionProfile(
     val summary: String,
@@ -50,6 +51,50 @@ data class DogMotionProfile(
                 confusedEyes = true,
                 headTiltDegrees = 4f,
             )
+        }
+
+        fun forState(
+            petState: PetState,
+            actionCue: DogActionCue,
+        ): DogMotionProfile {
+            if (actionCue == DogActionCue.None) {
+                return forState(petState)
+            }
+
+            return when (actionCue) {
+                DogActionCue.None -> forState(petState)
+                DogActionCue.EarPerk -> DogMotionProfile(
+                    summary = "耳朵竖起，眼睛看向用户",
+                    earLift = true,
+                    eyeFocus = true,
+                )
+
+                DogActionCue.HeadTilt -> DogMotionProfile(
+                    summary = if (petState == PetState.Error) {
+                        "困惑歪头，提示黄项圈"
+                    } else {
+                        "闭口思考，轻微歪头"
+                    },
+                    confusedEyes = petState == PetState.Error,
+                    headTiltDegrees = if (petState == PetState.Error) 4f else -3f,
+                )
+
+                DogActionCue.TailWag -> DogMotionProfile(
+                    summary = "完成眨眼，轻摆尾巴",
+                    blink = true,
+                    tailWag = true,
+                )
+
+                DogActionCue.Blink -> DogMotionProfile(
+                    summary = "完成眨眼",
+                    blink = true,
+                )
+
+                DogActionCue.BodyBounce -> DogMotionProfile(
+                    summary = "嘴型优先，低幅头身动作",
+                    speakingPulse = true,
+                )
+            }
         }
     }
 }

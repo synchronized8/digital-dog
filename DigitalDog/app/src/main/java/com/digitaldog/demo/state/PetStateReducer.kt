@@ -28,7 +28,18 @@ object PetStateReducer {
 
         return current.copy(
             petState = nextState,
-            currentMouth = MouthShape.Closed,
+            currentMouth = if (nextState == PetState.Speaking) MouthShape.Open else MouthShape.Closed,
+            speechAnimationState = when (nextState) {
+                PetState.Speaking -> SpeechAnimationState.Speaking
+                PetState.Thinking -> SpeechAnimationState.Preparing
+                PetState.Done -> SpeechAnimationState.Done
+                PetState.Error -> SpeechAnimationState(
+                    isSpeaking = false,
+                    mouthOpen = false,
+                    actionCue = DogActionCue.HeadTilt,
+                )
+                else -> SpeechAnimationState.Idle
+            },
         )
     }
 }

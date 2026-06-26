@@ -44,6 +44,7 @@ import com.digitaldog.demo.designsystem.DogTypography
 import com.digitaldog.demo.dogrenderer.DogMouthRenderer
 import com.digitaldog.demo.dogrenderer.DogMotionProfile
 import com.digitaldog.demo.sharedmodel.MouthShape
+import com.digitaldog.demo.sharedmodel.PetState
 import com.digitaldog.demo.state.SpeechDemoState
 import com.digitaldog.demo.state.toPresentation
 
@@ -54,7 +55,15 @@ fun PetStagePlaceholder(
     motionPolicy: ReduceMotionPolicy = ReduceMotionPolicy.Normal,
 ) {
     val presentation = uiState.toPresentation()
-    val motionProfile = motionPolicy.applyTo(DogMotionProfile.forState(uiState.petState))
+    val motionProfile = motionPolicy.applyTo(
+        DogMotionProfile.forState(
+            petState = uiState.petState,
+            actionCue = uiState.speechAnimationState.actionCue,
+        ),
+    )
+    val isSpeakingMouthOpen = uiState.speechAnimationState.mouthOpen ||
+        uiState.petState == PetState.Speaking
+    val displayMouth = if (isSpeakingMouthOpen) MouthShape.Open else uiState.currentMouth
 
     Box(
         modifier = modifier
@@ -65,11 +74,12 @@ fun PetStagePlaceholder(
             .semantics {
                 contentDescription = AppContentContract.stageDescription(
                     stateLabel = presentation.stateLabel,
-                    mouthLabel = AppContentContract.mouthSemanticLabel(uiState.currentMouth),
+                    mouthLabel = AppContentContract.mouthSemanticLabel(displayMouth),
                     inputSourceLabel = uiState.inputSource.label,
                     stateDescription = AppContentContract.stageMouthStateDescription(
-                        mouth = uiState.currentMouth,
+                        mouth = displayMouth,
                         stateDescription = presentation.stateDescription,
+                        isSpeakingMouthOpen = isSpeakingMouthOpen,
                     ),
                     collarDescription = presentation.collar.description,
                     motionDescription = motionProfile.summary,
@@ -93,7 +103,7 @@ fun PetStagePlaceholder(
         ) {
             DigitalDogStaticFigure(
                 collarColor = presentation.collar.color,
-                mouthShape = uiState.currentMouth,
+                mouthShape = displayMouth,
                 motionProfile = motionProfile,
                 motionPolicy = motionPolicy,
             )
@@ -110,6 +120,7 @@ fun PetStagePlaceholder(
                     poseSummary = AppContentContract.stageMouthPoseSummary(
                         mouth = uiState.currentMouth,
                         poseSummary = presentation.poseSummary,
+                        isSpeakingMouthOpen = isSpeakingMouthOpen,
                     ),
                     collarRole = presentation.collar.role,
                     motionSummary = motionProfile.summary,

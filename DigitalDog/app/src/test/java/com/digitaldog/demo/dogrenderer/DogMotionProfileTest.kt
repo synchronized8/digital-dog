@@ -2,6 +2,7 @@ package com.digitaldog.demo.dogrenderer
 
 import com.digitaldog.demo.accessibility.ReduceMotionPolicy
 import com.digitaldog.demo.sharedmodel.PetState
+import com.digitaldog.demo.state.DogActionCue
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -63,5 +64,56 @@ class DogMotionProfileTest {
         assertFalse(staticProfile.tailWag)
         assertTrue(staticProfile.mouthRemainsObservable)
         assertEquals("静态测试模式，保留嘴型和状态摘要", staticProfile.summary)
+    }
+
+    @Test
+    fun actionCuesDrivePlayfulMotionWithoutCoveringMouth() {
+        val preparing = DogMotionProfile.forState(PetState.Thinking, DogActionCue.EarPerk)
+        val speaking = DogMotionProfile.forState(PetState.Speaking, DogActionCue.BodyBounce)
+        val tailFeedback = DogMotionProfile.forState(PetState.Done, DogActionCue.TailWag)
+        val blinkFeedback = DogMotionProfile.forState(PetState.Done, DogActionCue.Blink)
+        val errorTilt = DogMotionProfile.forState(PetState.Error, DogActionCue.HeadTilt)
+
+        assertEquals("耳朵竖起，眼睛看向用户", preparing.summary)
+        assertTrue(preparing.earLift)
+        assertTrue(preparing.eyeFocus)
+        assertFalse(preparing.mouthCanBeCovered)
+        assertTrue(preparing.mouthRemainsObservable)
+
+        assertEquals("嘴型优先，低幅头身动作", speaking.summary)
+        assertTrue(speaking.speakingPulse)
+        assertFalse(speaking.mouthCanBeCovered)
+        assertTrue(speaking.mouthRemainsObservable)
+
+        assertEquals("完成眨眼，轻摆尾巴", tailFeedback.summary)
+        assertTrue(tailFeedback.blink)
+        assertTrue(tailFeedback.tailWag)
+        assertFalse(tailFeedback.mouthCanBeCovered)
+        assertTrue(tailFeedback.mouthRemainsObservable)
+
+        assertEquals("完成眨眼", blinkFeedback.summary)
+        assertTrue(blinkFeedback.blink)
+        assertFalse(blinkFeedback.tailWag)
+        assertTrue(blinkFeedback.mouthRemainsObservable)
+
+        assertEquals("困惑歪头，提示黄项圈", errorTilt.summary)
+        assertTrue(errorTilt.confusedEyes)
+        assertEquals(4f, errorTilt.headTiltDegrees)
+        assertTrue(errorTilt.mouthRemainsObservable)
+    }
+
+    @Test
+    fun reducedMotionFreezesActionCueDecorationButKeepsMouthObservable() {
+        val tailFeedback = DogMotionProfile.forState(PetState.Done, DogActionCue.TailWag)
+
+        val reduced = ReduceMotionPolicy.Reduced.applyTo(tailFeedback)
+
+        assertFalse(reduced.blink)
+        assertFalse(reduced.tailWag)
+        assertFalse(reduced.earLift)
+        assertFalse(reduced.speakingPulse)
+        assertFalse(reduced.mouthCanBeCovered)
+        assertTrue(reduced.mouthRemainsObservable)
+        assertEquals("减少动态，保留嘴型和状态摘要", reduced.summary)
     }
 }

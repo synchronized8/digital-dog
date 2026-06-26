@@ -3,12 +3,11 @@ package com.digitaldog.demo
 import java.io.File
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class StoryTwoTwoScopeBoundaryTest {
+class StoryTwoThreeScopeBoundaryTest {
     @Test
-    fun storyTwoTwoDoesNotIntroduceOutOfScopeSpeechAudioOrInfrastructureCapabilities() {
+    fun storyTwoThreeDoesNotReintroduceOutOfScopeSyncAudioOrInfrastructureCapabilities() {
         val projectRoot = sequenceOf(
             File("."),
             File(".."),
@@ -23,9 +22,14 @@ class StoryTwoTwoScopeBoundaryTest {
             "MediaPlayer",
             "AudioTrack",
             "SpeechRecognizer",
-            "TimelinePlayer",
             "PlaybackClock",
             "CurrentMouthResolver",
+            "LipSyncTimeline",
+            "LipSyncSegment",
+            "TtsTimelineGenerator",
+            "TimelineQuality",
+            "TimelineGenerator",
+            "ManualMouthTestReducer",
             "TextHighlight",
             "HighlightedText",
             "Waveform",
@@ -54,7 +58,7 @@ class StoryTwoTwoScopeBoundaryTest {
         )
         val currentTestPath = File(
             projectRoot,
-            "app/src/test/java/com/digitaldog/demo/StoryTwoTwoScopeBoundaryTest.kt",
+            "app/src/test/java/com/digitaldog/demo/StoryTwoThreeScopeBoundaryTest.kt",
         ).canonicalPath
 
         val filesToScan = listOf(
@@ -89,11 +93,11 @@ class StoryTwoTwoScopeBoundaryTest {
             }
 
         forbiddenTokens.forEach { token ->
-            assertFalse("Story 2.2 must not introduce $token", sourceText.contains(token))
+            assertFalse("Story 2.3 must not introduce $token", sourceText.contains(token))
         }
 
         assertTrue(
-            "Story 2.2 must not introduce new Gradle dependencies",
+            "Story 2.3 must not introduce new Gradle dependencies",
             unexpectedDependencyDeclarations(projectRoot!!).isEmpty(),
         )
     }
